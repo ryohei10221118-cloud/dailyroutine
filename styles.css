@@ -383,6 +383,23 @@ h3 {
     background: #1976D2;
 }
 
+.btn-add-small {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add-small:hover {
+    background: #1976D2;
+    transform: scale(1.05);
+}
+
 .btn-secondary {
     background: var(--bg-secondary);
     color: var(--text-primary);
@@ -658,6 +675,31 @@ h3 {
     font-size: 11px;
     color: var(--warning-color);
     margin-top: 5px;
+}
+
+.product-card.select-mode {
+    display: flex;
+    align-items: center;
+    text-align: left;
+    padding: 12px;
+}
+
+.product-card.select-mode:hover {
+    transform: none;
+}
+
+.product-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.product-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
 }
 
 /* 統計卡片 */
@@ -940,6 +982,7 @@ h3 {
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: modalSlideIn 0.3s;
+    box-sizing: border-box;
 }
 
 .modal-large {
@@ -1004,7 +1047,32 @@ h3 {
 
     .modal-content {
         max-height: 85vh;
-        margin: 20px auto;
+        margin: 10px;
+        max-width: calc(100vw - 20px);
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="time"],
+    .form-group input[type="number"],
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px; /* 防止 iOS 自動縮放 */
+    }
+
+    .weekday-selector {
+        gap: 8px;
+    }
+
+    .weekday-selector label {
+        padding: 6px 10px;
+        font-size: 14px;
     }
 }
 
@@ -1045,6 +1113,8 @@ h3 {
     font-size: 15px;
     font-family: inherit;
     transition: border-color 0.2s;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .form-group input:focus,
@@ -1097,6 +1167,48 @@ h3 {
     .tab-btn {
         font-size: 12px;
         padding: 12px 8px;
+    }
+
+    /* 日曆優化 */
+    .calendar-grid {
+        gap: 4px;
+        padding: 10px;
+    }
+
+    .calendar-day {
+        min-height: 45px;
+        font-size: 12px;
+    }
+
+    .day-number {
+        font-size: 12px;
+    }
+
+    .day-icon {
+        font-size: 18px;
+    }
+
+    .day-completion {
+        font-size: 10px;
+    }
+
+    .calendar-day-header {
+        font-size: 12px;
+        padding: 4px;
+    }
+
+    .calendar-controls {
+        padding: 10px;
+    }
+
+    .calendar-month {
+        font-size: 16px;
+    }
+
+    .btn-calendar-nav {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
     }
 }
 
@@ -1285,6 +1397,8 @@ h3 {
     border-radius: 12px;
     box-shadow: var(--shadow);
     margin: 15px 0;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .calendar-day-header {

@@ -17,6 +17,8 @@ const App = {
     selectedSlots: new Set(),
     routineSelectMode: false,
     selectedRoutines: new Set(),
+    productSelectMode: false,
+    selectedProducts: new Set(),
 
     // 資料
     routines: {},
@@ -532,6 +534,12 @@ App.setupEventListeners = function() {
     document.getElementById('selectAllRoutinesBtn')?.addEventListener('click', () => this.selectAllRoutines());
     document.getElementById('deleteSelectedRoutinesBtn')?.addEventListener('click', () => this.deleteSelectedRoutines());
     document.getElementById('cancelRoutineSelectBtn')?.addEventListener('click', () => this.cancelRoutineSelectMode());
+
+    // 批量選擇（產品管理）
+    document.getElementById('toggleProductSelectModeBtn')?.addEventListener('click', () => this.toggleProductSelectMode());
+    document.getElementById('selectAllProductsBtn')?.addEventListener('click', () => this.selectAllProducts());
+    document.getElementById('deleteSelectedProductsBtn')?.addEventListener('click', () => this.deleteSelectedProducts());
+    document.getElementById('cancelProductSelectBtn')?.addEventListener('click', () => this.cancelProductSelectMode());
 };
 
 App.switchTab = function(tabName) {
@@ -1250,17 +1258,67 @@ App.updateProductsView = function() {
     const grid = document.getElementById('productsList');
     grid.innerHTML = '';
 
-    Object.values(this.products).forEach(product => {
+    const products = Object.values(this.products);
+
+    if (products.length === 0) {
+        grid.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無產品<br>點擊「新增」按鈕來添加產品</div>';
+        return;
+    }
+
+    products.forEach(product => {
         const card = document.createElement('div');
         card.className = 'product-card';
-        card.innerHTML = `
-            <div class="product-icon">${product.icon || '🧴'}</div>
-            <div class="product-name">${product.name}</div>
-            <div class="product-type">${this.getProductTypeName(product.type)}</div>
-            ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
-        `;
 
-        card.addEventListener('click', () => this.showProductDetail(product.id));
+        // 選擇模式：顯示複選框
+        if (this.productSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedProducts.has(product.id);
+            card.innerHTML = `
+                <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" ${isChecked ? 'checked' : ''}>
+                <div class="product-content" style="flex: 1;">
+                    <div class="product-icon">${product.icon || '🧴'}</div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-type">${this.getProductTypeName(product.type)}</div>
+                    ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.product-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedProducts.add(product.id);
+                } else {
+                    this.selectedProducts.delete(product.id);
+                }
+                this.updateProductDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示產品詳情和操作按鈕
+            card.innerHTML = `
+                <div class="product-icon">${product.icon || '🧴'}</div>
+                <div class="product-name">${product.name}</div>
+                <div class="product-type">${this.getProductTypeName(product.type)}</div>
+                ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
+                <div class="product-actions" style="margin-top: 10px;">
+                    <button class="btn-icon edit" data-id="${product.id}" style="margin-right: 5px;">✏️</button>
+                    <button class="btn-icon delete" data-id="${product.id}">🗑️</button>
+                </div>
+            `;
+
+            // 添加編輯按鈕事件
+            card.querySelector('.edit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showProductModal(product.id);
+            });
+
+            // 添加刪除按鈕事件
+            card.querySelector('.delete').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteProduct(product.id);
+            });
+        }
+
         grid.appendChild(card);
     });
 };
@@ -1284,6 +1342,14 @@ App.showProductDetail = function(productId) {
     if (!product) return;
 
     alert(`${product.icon} ${product.name}\n\n使用方式：\n${product.usage || '無'}\n\n${product.frequency ? '使用頻率：' + product.frequency : ''}`);
+};
+
+App.deleteProduct = function(productId) {
+    if (confirm('確定要刪除此產品嗎？')) {
+        delete this.products[productId];
+        this.saveData();
+        this.updateProductsView();
+    }
 };
 
 App.showProductModal = function(productId = null) {
@@ -2295,6 +2361,96 @@ App.changeMonth = function(offset) {
     const newDate = new Date(this.currentCalendarMonth);
     newDate.setMonth(newDate.getMonth() + offset);
     this.updateCalendarView(newDate);
+};
+
+// === 產品批量選擇功能 ===
+
+App.toggleProductSelectMode = function() {
+    this.productSelectMode = !this.productSelectMode;
+    this.selectedProducts.clear();
+
+    const toggleBtn = document.getElementById('toggleProductSelectModeBtn');
+    const batchActions = document.getElementById('productBatchActions');
+
+    if (this.productSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateProductsView();
+};
+
+App.selectAllProducts = function() {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedProducts.delete(checkbox.dataset.productId);
+        });
+        document.getElementById('selectAllProductsBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedProducts.add(checkbox.dataset.productId);
+        });
+        document.getElementById('selectAllProductsBtn').textContent = '取消全選';
+    }
+
+    this.updateProductDeleteButtonState();
+};
+
+App.updateProductDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedProductsBtn');
+    const selectAllBtn = document.getElementById('selectAllProductsBtn');
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedProducts.size === 0;
+    deleteBtn.textContent = this.selectedProducts.size > 0
+        ? `刪除選中 (${this.selectedProducts.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedProducts = function() {
+    if (this.selectedProducts.size === 0) return;
+
+    const count = this.selectedProducts.size;
+    if (!confirm(`確定要刪除 ${count} 個產品嗎？`)) {
+        return;
+    }
+
+    // 刪除選中的產品
+    this.selectedProducts.forEach(productId => {
+        delete this.products[productId];
+    });
+
+    this.selectedProducts.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateProductsView();
+
+    alert(`✅ 已刪除 ${count} 個產品！`);
+};
+
+App.cancelProductSelectMode = function() {
+    this.productSelectMode = false;
+    this.selectedProducts.clear();
+
+    document.getElementById('toggleProductSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleProductSelectModeBtn').style.background = '';
+    document.getElementById('productBatchActions').style.display = 'none';
+
+    this.updateProductsView();
 };
 
 // 定期檢查通知（每分鐘）

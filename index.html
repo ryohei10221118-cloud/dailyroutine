@@ -63,7 +63,10 @@
                         <h2 style="margin: 0;">⏰ 時段設定</h2>
                         <p class="section-desc" style="margin: 5px 0 0 0;">您可以自由新增或刪除提醒時段</p>
                     </div>
-                    <button class="btn-select-mode" id="toggleSlotSelectModeBtn">選擇</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-add-small" id="addTimeSlotBtn">+ 新增</button>
+                        <button class="btn-select-mode" id="toggleSlotSelectModeBtn">選擇</button>
+                    </div>
                 </div>
 
                 <div class="batch-actions" id="slotBatchActions" style="display: none;">
@@ -75,8 +78,6 @@
                 <div class="time-slots-list" id="timeSlotsList">
                     <!-- 動態生成 -->
                 </div>
-
-                <button class="btn-add" id="addTimeSlotBtn">+ 新增時段</button>
 
                 <!-- 週間排程 -->
                 <div class="weekly-schedule">
@@ -107,14 +108,23 @@
 
             <!-- 產品管理頁面 -->
             <section class="tab-content" id="products-tab">
-                <h2>🧪 產品庫</h2>
-                <p class="section-desc">管理您的保養品</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">🧪 產品庫</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-add-small" id="addProductBtn">+ 新增</button>
+                        <button class="btn-select-mode" id="toggleProductSelectModeBtn">選擇</button>
+                    </div>
+                </div>
+
+                <div class="batch-actions" id="productBatchActions" style="display: none;">
+                    <button class="btn-select-all" id="selectAllProductsBtn">全選</button>
+                    <button class="btn-delete-selected" id="deleteSelectedProductsBtn">刪除選中</button>
+                    <button class="btn-cancel-select" id="cancelProductSelectBtn">取消</button>
+                </div>
 
                 <div class="products-grid" id="productsList">
                     <!-- 動態生成 -->
                 </div>
-
-                <button class="btn-add" id="addProductBtn">+ 新增產品</button>
             </section>
 
             <!-- 使用記錄頁面 -->
