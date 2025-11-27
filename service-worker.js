@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skincare-reminder-v1';
+const CACHE_NAME = 'skincare-reminder-v2';
 const urlsToCache = [
   '/',
   '/index.html',
