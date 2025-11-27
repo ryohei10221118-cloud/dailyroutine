@@ -1,0 +1,14 @@
+# 排除臨時文件
+.DS_Store
+Thumbs.db
+
+# 排除編輯器配置
+.vscode/
+.idea/
+
+# 排除日誌
+*.log
+
+# 如果使用 npm（未來擴展用）
+node_modules/
+package-lock.json

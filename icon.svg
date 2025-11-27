@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 背景圓形 -->
+  <circle cx="256" cy="256" r="256" fill="#4CAF50"/>
+
+  <!-- 乳液瓶身 -->
+  <rect x="180" y="180" width="152" height="200" rx="20" fill="#ffffff"/>
+
+  <!-- 瓶蓋 -->
+  <rect x="200" y="150" width="112" height="40" rx="8" fill="#81C784"/>
+
+  <!-- 按壓頭 -->
+  <rect x="230" y="130" width="52" height="30" rx="5" fill="#66BB6A"/>
+
+  <!-- 液體指示 -->
+  <rect x="200" y="250" width="112" height="100" rx="10" fill="#A5D6A7" opacity="0.6"/>
+
+  <!-- 裝飾線條 -->
+  <line x1="220" y1="220" x2="292" y2="220" stroke="#4CAF50" stroke-width="3" stroke-linecap="round"/>
+  <line x1="220" y1="240" x2="270" y2="240" stroke="#4CAF50" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- 提醒符號 (鬧鐘圖示) -->
+  <circle cx="380" cy="400" r="50" fill="#FF9800"/>
+  <circle cx="380" cy="400" r="40" fill="#FFF"/>
+  <line x1="380" y1="400" x2="380" y2="375" stroke="#FF9800" stroke-width="4" stroke-linecap="round"/>
+  <line x1="380" y1="400" x2="395" y2="410" stroke="#FF9800" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="360" cy="360" r="5" fill="#FF9800"/>
+  <circle cx="400" cy="360" r="5" fill="#FF9800"/>
+</svg>

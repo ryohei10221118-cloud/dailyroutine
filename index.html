@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <title>保養提醒助手</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="保養提醒">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部導航 -->
+        <header class="app-header">
+            <h1>🧴 保養提醒助手</h1>
+            <div class="header-date" id="currentDate"></div>
+        </header>
+
+        <!-- 主要內容區 -->
+        <main class="main-content">
+            <!-- 標籤頁導航 -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="today">今日流程</button>
+                <button class="tab-btn" data-tab="schedule">時段設定</button>
+                <button class="tab-btn" data-tab="products">產品管理</button>
+                <button class="tab-btn" data-tab="history">使用記錄</button>
+            </nav>
+
+            <!-- 今日流程頁面 -->
+            <section class="tab-content active" id="today-tab">
+                <div class="today-overview">
+                    <h2>今日保養計劃</h2>
+                    <div class="day-type" id="dayType"></div>
+                </div>
+
+                <!-- 今日時段列表 -->
+                <div class="timeline-container" id="todayTimeline">
+                    <!-- 動態生成 -->
+                </div>
+
+                <!-- 當前流程詳情 -->
+                <div class="current-routine" id="currentRoutine" style="display: none;">
+                    <h3 class="routine-title"></h3>
+                    <div class="steps-list">
+                        <!-- 動態生成步驟 -->
+                    </div>
+                    <button class="btn-complete" id="completeRoutineBtn">✓ 完成此流程</button>
+                </div>
+            </section>
+
+            <!-- 時段設定頁面 -->
+            <section class="tab-content" id="schedule-tab">
+                <h2>⏰ 時段設定</h2>
+                <p class="section-desc">您可以自由新增或刪除提醒時段</p>
+
+                <div class="time-slots-list" id="timeSlotsList">
+                    <!-- 動態生成 -->
+                </div>
+
+                <button class="btn-add" id="addTimeSlotBtn">+ 新增時段</button>
+
+                <!-- 週間排程 -->
+                <div class="weekly-schedule">
+                    <h3>每週排程</h3>
+                    <div id="weeklyScheduleView">
+                        <!-- 動態生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 產品管理頁面 -->
+            <section class="tab-content" id="products-tab">
+                <h2>🧪 產品庫</h2>
+                <p class="section-desc">管理您的保養品</p>
+
+                <div class="products-grid" id="productsList">
+                    <!-- 動態生成 -->
+                </div>
+
+                <button class="btn-add" id="addProductBtn">+ 新增產品</button>
+            </section>
+
+            <!-- 使用記錄頁面 -->
+            <section class="tab-content" id="history-tab">
+                <h2>📊 使用記錄</h2>
+
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-number" id="streakDays">0</div>
+                        <div class="stat-label">連續天數</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="completionRate">0%</div>
+                        <div class="stat-label">完成率</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalRoutines">0</div>
+                        <div class="stat-label">總流程數</div>
+                    </div>
+                </div>
+
+                <div class="history-list" id="historyList">
+                    <!-- 動態生成 -->
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部設置按鈕 -->
+        <footer class="app-footer">
+            <button class="btn-settings" id="settingsBtn">⚙️ 設定</button>
+            <button class="btn-notification" id="notificationBtn">🔔 啟用通知</button>
+        </footer>
+    </div>
+
+    <!-- 模態框 - 新增時段 -->
+    <div class="modal" id="timeSlotModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增/編輯時段</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>時段名稱</label>
+                    <input type="text" id="slotName" placeholder="例如：起床保養">
+                </div>
+                <div class="form-group">
+                    <label>提醒時間</label>
+                    <input type="time" id="slotTime">
+                </div>
+                <div class="form-group">
+                    <label>關聯流程</label>
+                    <select id="slotRoutine">
+                        <option value="">選擇流程...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>重複日期</label>
+                    <div class="weekday-selector">
+                        <label><input type="checkbox" value="1"> 週一</label>
+                        <label><input type="checkbox" value="2"> 週二</label>
+                        <label><input type="checkbox" value="3"> 週三</label>
+                        <label><input type="checkbox" value="4"> 週四</label>
+                        <label><input type="checkbox" value="5"> 週五</label>
+                        <label><input type="checkbox" value="6"> 週六</label>
+                        <label><input type="checkbox" value="0"> 週日</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelSlotBtn">取消</button>
+                <button class="btn-primary" id="saveSlotBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 新增產品 -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增/編輯產品</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>產品名稱</label>
+                    <input type="text" id="productName" placeholder="例如：綠滴管 積雪草精華">
+                </div>
+                <div class="form-group">
+                    <label>產品類型</label>
+                    <select id="productType">
+                        <option value="cleanser">洗面乳</option>
+                        <option value="toner">化妝水/Toner</option>
+                        <option value="essence">精華液</option>
+                        <option value="cream">乳液/面霜</option>
+                        <option value="sunscreen">防曬</option>
+                        <option value="mask">面膜</option>
+                        <option value="pad">Pad/去角質</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>使用說明</label>
+                    <textarea id="productNotes" placeholder="用量、塗抹方式等..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>庫存提醒</label>
+                    <input type="number" id="productStock" placeholder="剩餘數量（選填）">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelProductBtn">取消</button>
+                <button class="btn-primary" id="saveProductBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 流程詳情 -->
+    <div class="modal" id="routineModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="routineModalTitle">流程詳情</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="routineModalBody">
+                <!-- 動態生成 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">關閉</button>
+                <button class="btn-primary" id="startRoutineBtn">開始執行</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // 註冊 Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('Service Worker 已註冊', reg))
+                .catch(err => console.log('Service Worker 註冊失敗', err));
+        }
+    </script>
+</body>
+</html>
