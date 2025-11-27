@@ -57,8 +57,19 @@
 
             <!-- 時段設定頁面 -->
             <section class="tab-content" id="schedule-tab">
-                <h2>⏰ 時段設定</h2>
-                <p class="section-desc">您可以自由新增或刪除提醒時段</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <h2 style="margin: 0;">⏰ 時段設定</h2>
+                        <p class="section-desc" style="margin: 5px 0 0 0;">您可以自由新增或刪除提醒時段</p>
+                    </div>
+                    <button class="btn-select-mode" id="toggleSlotSelectModeBtn">選擇</button>
+                </div>
+
+                <div class="batch-actions" id="slotBatchActions" style="display: none;">
+                    <button class="btn-select-all" id="selectAllSlotsBtn">全選</button>
+                    <button class="btn-delete-selected" id="deleteSelectedSlotsBtn">刪除選中</button>
+                    <button class="btn-cancel-select" id="cancelSlotSelectBtn">取消</button>
+                </div>
 
                 <div class="time-slots-list" id="timeSlotsList">
                     <!-- 動態生成 -->

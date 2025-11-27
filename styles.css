@@ -458,6 +458,47 @@ h3 {
     color: var(--danger-color);
 }
 
+/* 時段流程下拉選單 */
+.slot-routine-wrapper {
+    margin-top: 8px;
+}
+
+.slot-routine-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.slot-routine-select:hover {
+    border-color: var(--primary-color);
+}
+
+.slot-routine-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+/* 時段複選框 */
+.slot-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.time-slot-card.select-mode {
+    display: flex;
+    align-items: center;
+}
+
 /* 產品網格 */
 .products-grid {
     display: grid;
@@ -835,6 +876,20 @@ h3 {
     padding: 20px;
     max-height: calc(90vh - 180px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* 改善 iOS 滾動 */
+}
+
+/* 手機端優化 */
+@media (max-width: 768px) {
+    .modal-body {
+        max-height: calc(80vh - 140px);
+        padding: 15px;
+    }
+
+    .modal-content {
+        max-height: 85vh;
+        margin: 20px auto;
+    }
 }
 
 .modal-footer {

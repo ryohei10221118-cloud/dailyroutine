@@ -13,6 +13,8 @@ const App = {
     smartSuggestion: null,
     selectMode: false,
     selectedRecords: new Set(),
+    slotSelectMode: false,
+    selectedSlots: new Set(),
 
     // 資料
     routines: {},
@@ -511,11 +513,17 @@ App.setupEventListeners = function() {
     document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
     document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
 
-    // 批量選擇
+    // 批量選擇（歷史記錄）
     document.getElementById('toggleSelectModeBtn')?.addEventListener('click', () => this.toggleSelectMode());
     document.getElementById('selectAllBtn')?.addEventListener('click', () => this.selectAllRecords());
     document.getElementById('deleteSelectedBtn')?.addEventListener('click', () => this.deleteSelectedRecords());
     document.getElementById('cancelSelectBtn')?.addEventListener('click', () => this.cancelSelectMode());
+
+    // 批量選擇（時段設定）
+    document.getElementById('toggleSlotSelectModeBtn')?.addEventListener('click', () => this.toggleSlotSelectMode());
+    document.getElementById('selectAllSlotsBtn')?.addEventListener('click', () => this.selectAllSlots());
+    document.getElementById('deleteSelectedSlotsBtn')?.addEventListener('click', () => this.deleteSelectedSlots());
+    document.getElementById('cancelSlotSelectBtn')?.addEventListener('click', () => this.cancelSlotSelectMode());
 };
 
 App.switchTab = function(tabName) {
@@ -767,20 +775,65 @@ App.updateScheduleView = function() {
 
         const card = document.createElement('div');
         card.className = 'time-slot-card';
-        card.innerHTML = `
-            <div class="slot-info">
-                <div class="slot-time">${slot.time}</div>
-                <div class="slot-name">${slot.name}</div>
-                <div class="slot-days">週${daysText} | ${routine ? routine.name : '未設定'}</div>
-            </div>
-            <div class="slot-actions">
-                <button class="btn-icon edit" data-id="${slot.id}">✏️</button>
-                <button class="btn-icon delete" data-id="${slot.id}">🗑️</button>
-            </div>
-        `;
 
-        card.querySelector('.edit').addEventListener('click', () => this.editTimeSlot(slot.id));
-        card.querySelector('.delete').addEventListener('click', () => this.deleteTimeSlot(slot.id));
+        // 選擇模式：顯示複選框
+        if (this.slotSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedSlots.has(slot.id);
+            card.innerHTML = `
+                <input type="checkbox" class="slot-checkbox" data-slot-id="${slot.id}" ${isChecked ? 'checked' : ''}>
+                <div class="slot-info" style="flex: 1;">
+                    <div class="slot-time">${slot.time}</div>
+                    <div class="slot-name">${slot.name}</div>
+                    <div class="slot-days">週${daysText} | ${routine ? routine.name : '未設定'}</div>
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.slot-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedSlots.add(slot.id);
+                } else {
+                    this.selectedSlots.delete(slot.id);
+                }
+                this.updateSlotDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示流程下拉選單和操作按鈕
+            // 生成流程下拉選單
+            let routineSelectHTML = '<select class="slot-routine-select" data-slot-id="' + slot.id + '">';
+            routineSelectHTML += '<option value="">選擇流程...</option>';
+            Object.values(this.routines).forEach(r => {
+                const selected = r.id === slot.routine ? 'selected' : '';
+                routineSelectHTML += `<option value="${r.id}" ${selected}>${r.name}</option>`;
+            });
+            routineSelectHTML += '</select>';
+
+            card.innerHTML = `
+                <div class="slot-info">
+                    <div class="slot-time">${slot.time}</div>
+                    <div class="slot-name">${slot.name}</div>
+                    <div class="slot-days">週${daysText}</div>
+                    <div class="slot-routine-wrapper">
+                        ${routineSelectHTML}
+                    </div>
+                </div>
+                <div class="slot-actions">
+                    <button class="btn-icon edit" data-id="${slot.id}">✏️</button>
+                    <button class="btn-icon delete" data-id="${slot.id}">🗑️</button>
+                </div>
+            `;
+
+            // 添加下拉選單變更事件
+            const selectElement = card.querySelector('.slot-routine-select');
+            selectElement.addEventListener('change', (e) => {
+                this.updateSlotRoutine(slot.id, e.target.value);
+            });
+
+            card.querySelector('.edit').addEventListener('click', () => this.editTimeSlot(slot.id));
+            card.querySelector('.delete').addEventListener('click', () => this.deleteTimeSlot(slot.id));
+        }
 
         list.appendChild(card);
     });
@@ -902,6 +955,105 @@ App.deleteTimeSlot = function(slotId) {
         this.timeSlots = this.timeSlots.filter(s => s.id !== slotId);
         this.saveData();
         this.updateScheduleView();
+    }
+};
+
+// === 時段批量選擇功能 ===
+
+App.toggleSlotSelectMode = function() {
+    this.slotSelectMode = !this.slotSelectMode;
+    this.selectedSlots.clear();
+
+    const toggleBtn = document.getElementById('toggleSlotSelectModeBtn');
+    const batchActions = document.getElementById('slotBatchActions');
+
+    if (this.slotSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateScheduleView();
+};
+
+App.selectAllSlots = function() {
+    const checkboxes = document.querySelectorAll('.slot-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedSlots.delete(checkbox.dataset.slotId);
+        });
+        document.getElementById('selectAllSlotsBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedSlots.add(checkbox.dataset.slotId);
+        });
+        document.getElementById('selectAllSlotsBtn').textContent = '取消全選';
+    }
+
+    this.updateSlotDeleteButtonState();
+};
+
+App.updateSlotDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedSlotsBtn');
+    const selectAllBtn = document.getElementById('selectAllSlotsBtn');
+    const checkboxes = document.querySelectorAll('.slot-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedSlots.size === 0;
+    deleteBtn.textContent = this.selectedSlots.size > 0
+        ? `刪除選中 (${this.selectedSlots.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedSlots = function() {
+    if (this.selectedSlots.size === 0) return;
+
+    const count = this.selectedSlots.size;
+    if (!confirm(`確定要刪除 ${count} 個時段嗎？`)) {
+        return;
+    }
+
+    // 刪除選中的時段
+    this.timeSlots = this.timeSlots.filter(slot => !this.selectedSlots.has(slot.id));
+
+    this.selectedSlots.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateScheduleView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 個時段！`);
+};
+
+App.cancelSlotSelectMode = function() {
+    this.slotSelectMode = false;
+    this.selectedSlots.clear();
+
+    document.getElementById('toggleSlotSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleSlotSelectModeBtn').style.background = '';
+    document.getElementById('slotBatchActions').style.display = 'none';
+
+    this.updateScheduleView();
+};
+
+App.updateSlotRoutine = function(slotId, routineId) {
+    const slot = this.timeSlots.find(s => s.id === slotId);
+    if (slot) {
+        slot.routine = routineId;
+        this.saveData();
+        this.updateTodayView();
+        this.updateWeeklyScheduleView();
     }
 };
 
