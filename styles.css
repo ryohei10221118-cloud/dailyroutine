@@ -602,6 +602,92 @@ h3 {
     transform: scale(0.95);
 }
 
+/* 批量選擇功能 */
+.btn-select-mode {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-select-mode:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.batch-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.btn-select-all,
+.btn-delete-selected,
+.btn-cancel-select {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-select-all {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+}
+
+.btn-select-all:hover {
+    background: #E3F2FD;
+}
+
+.btn-delete-selected {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.btn-delete-selected:hover {
+    background: #FFCDD2;
+}
+
+.btn-delete-selected:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-cancel-select {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.btn-cancel-select:hover {
+    background: var(--border-color);
+}
+
+.history-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.history-item.select-mode {
+    display: flex;
+    align-items: center;
+}
+
 /* 週間排程 */
 .weekly-schedule {
     margin-top: 30px;

@@ -11,6 +11,8 @@ const App = {
     editingProductId: null,
     notificationPermission: false,
     smartSuggestion: null,
+    selectMode: false,
+    selectedRecords: new Set(),
 
     // 資料
     routines: {},
@@ -508,6 +510,12 @@ App.setupEventListeners = function() {
     // 日曆導航
     document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
     document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
+
+    // 批量選擇
+    document.getElementById('toggleSelectModeBtn')?.addEventListener('click', () => this.toggleSelectMode());
+    document.getElementById('selectAllBtn')?.addEventListener('click', () => this.selectAllRecords());
+    document.getElementById('deleteSelectedBtn')?.addEventListener('click', () => this.deleteSelectedRecords());
+    document.getElementById('cancelSelectBtn')?.addEventListener('click', () => this.cancelSelectMode());
 };
 
 App.switchTab = function(tabName) {
@@ -1041,24 +1049,53 @@ App.updateHistoryView = function() {
 
         const item = document.createElement('div');
         item.className = 'history-item';
-        item.innerHTML = `
-            <div style="flex: 1;">
-                <div class="history-routine">${record.routineName}</div>
-                <div class="history-date">${dateStr}</div>
-            </div>
-            <span class="history-status ${statusClass}">
-                ${statusText}
-            </span>
-            ${isToday ? `<button class="btn-delete-record" data-record-id="${record.id}">🗑️</button>` : ''}
-        `;
 
-        // 添加刪除按鈕事件監聽器
-        if (isToday) {
-            const deleteBtn = item.querySelector('.btn-delete-record');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.deleteHistoryRecord(record.id);
+        // 選擇模式：顯示複選框
+        if (this.selectMode) {
+            item.classList.add('select-mode');
+            const isChecked = this.selectedRecords.has(record.id);
+            item.innerHTML = `
+                <input type="checkbox" class="history-checkbox" data-record-id="${record.id}" ${isChecked ? 'checked' : ''}>
+                <div style="flex: 1;">
+                    <div class="history-routine">${record.routineName}</div>
+                    <div class="history-date">${dateStr}</div>
+                </div>
+                <span class="history-status ${statusClass}">
+                    ${statusText}
+                </span>
+            `;
+
+            // 添加複選框事件監聽器
+            const checkbox = item.querySelector('.history-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedRecords.add(record.id);
+                } else {
+                    this.selectedRecords.delete(record.id);
+                }
+                this.updateDeleteButtonState();
             });
+        } else {
+            // 普通模式：顯示刪除按鈕（僅限當天）
+            item.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="history-routine">${record.routineName}</div>
+                    <div class="history-date">${dateStr}</div>
+                </div>
+                <span class="history-status ${statusClass}">
+                    ${statusText}
+                </span>
+                ${isToday ? `<button class="btn-delete-record" data-record-id="${record.id}">🗑️</button>` : ''}
+            `;
+
+            // 添加刪除按鈕事件監聽器
+            if (isToday) {
+                const deleteBtn = item.querySelector('.btn-delete-record');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteHistoryRecord(record.id);
+                });
+            }
         }
 
         historyList.appendChild(item);
@@ -1102,6 +1139,102 @@ App.updateStats = function() {
     document.getElementById('streakDays').textContent = streak;
     document.getElementById('completionRate').textContent = completionRate + '%';
     document.getElementById('totalRoutines').textContent = this.history.filter(r => r.completed).length;
+};
+
+// === 批量選擇功能 ===
+
+App.toggleSelectMode = function() {
+    this.selectMode = !this.selectMode;
+    this.selectedRecords.clear();
+
+    const toggleBtn = document.getElementById('toggleSelectModeBtn');
+    const batchActions = document.getElementById('batchActions');
+
+    if (this.selectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateHistoryView();
+};
+
+App.selectAllRecords = function() {
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        // 如果全選了，就全部取消
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedRecords.delete(checkbox.dataset.recordId);
+        });
+        document.getElementById('selectAllBtn').textContent = '全選';
+    } else {
+        // 否則全選
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedRecords.add(checkbox.dataset.recordId);
+        });
+        document.getElementById('selectAllBtn').textContent = '取消全選';
+    }
+
+    this.updateDeleteButtonState();
+};
+
+App.updateDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedRecords.size === 0;
+    deleteBtn.textContent = this.selectedRecords.size > 0
+        ? `刪除選中 (${this.selectedRecords.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedRecords = function() {
+    if (this.selectedRecords.size === 0) return;
+
+    const count = this.selectedRecords.size;
+    if (!confirm(`確定要刪除 ${count} 筆記錄嗎？刪除後對應的保養流程將重新開啟。`)) {
+        return;
+    }
+
+    // 刪除選中的記錄
+    this.selectedRecords.forEach(recordId => {
+        const index = this.history.findIndex(record => record.id === recordId);
+        if (index !== -1) {
+            this.history.splice(index, 1);
+        }
+    });
+
+    this.selectedRecords.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateHistoryView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 筆記錄！`);
+};
+
+App.cancelSelectMode = function() {
+    this.selectMode = false;
+    this.selectedRecords.clear();
+
+    document.getElementById('toggleSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleSelectModeBtn').style.background = '';
+    document.getElementById('batchActions').style.display = 'none';
+
+    this.updateHistoryView();
 };
 
 App.checkNotificationPermission = function() {

@@ -89,7 +89,16 @@
 
             <!-- 使用記錄頁面 -->
             <section class="tab-content" id="history-tab">
-                <h2>📊 使用記錄</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📊 使用記錄</h2>
+                    <button class="btn-select-mode" id="toggleSelectModeBtn">選擇</button>
+                </div>
+
+                <div class="batch-actions" id="batchActions" style="display: none;">
+                    <button class="btn-select-all" id="selectAllBtn">全選</button>
+                    <button class="btn-delete-selected" id="deleteSelectedBtn">刪除選中</button>
+                    <button class="btn-cancel-select" id="cancelSelectBtn">取消</button>
+                </div>
 
                 <div class="stats-cards">
                     <div class="stat-card">
