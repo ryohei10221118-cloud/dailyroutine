@@ -504,6 +504,10 @@ App.setupEventListeners = function() {
     document.getElementById('applySuggestBtn')?.addEventListener('click', () => this.applySmartSuggestion());
     document.getElementById('mergeRoutinesBtn')?.addEventListener('click', () => this.applySuggestionMerge());
     document.getElementById('replaceRoutinesBtn')?.addEventListener('click', () => this.applySuggestionReplace());
+
+    // 日曆導航
+    document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
+    document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
 };
 
 App.switchTab = function(tabName) {
@@ -521,6 +525,7 @@ App.switchTab = function(tabName) {
 
     // 更新對應標籤的內容
     if (tabName === 'today') this.updateTodayView();
+    if (tabName === 'calendar') this.updateCalendarView();
     if (tabName === 'schedule') this.updateScheduleView();
     if (tabName === 'products') this.updateProductsView();
     if (tabName === 'history') this.updateHistoryView();
@@ -572,15 +577,18 @@ App.updateTodayView = function() {
         });
 
         const item = document.createElement('div');
-        item.className = 'timeline-item' + (isCompleted ? ' completed' : '');
+        item.className = 'timeline-item' + (isCompleted ? ' completed locked' : '');
         item.innerHTML = `
             <div class="timeline-time">${slot.time}</div>
             <div class="timeline-title">${slot.name}</div>
             <div class="timeline-desc">${routine.name}</div>
-            <span class="timeline-status ${isCompleted ? 'completed' : 'pending'}">${isCompleted ? '✓ 已完成' : '待執行'}</span>
+            <span class="timeline-status ${isCompleted ? 'completed' : 'pending'}">${isCompleted ? '✓ 已完成 🔒' : '待執行'}</span>
         `;
 
-        item.addEventListener('click', () => this.showRoutineDetail(slot.routine, slot.id));
+        // 只有未完成的項目才能點擊
+        if (!isCompleted) {
+            item.addEventListener('click', () => this.showRoutineDetail(slot.routine, slot.id));
+        }
         timeline.appendChild(item);
     });
 };
@@ -659,6 +667,19 @@ App.completeRoutine = function() {
     const routine = this.routines[this.currentRoutineId];
     const now = new Date();
 
+    // 獲取所有勾選的步驟
+    const checkboxes = document.querySelectorAll('#currentRoutine .step-checkbox');
+    const completedSteps = [];
+    checkboxes.forEach((checkbox, index) => {
+        if (checkbox.checked) {
+            completedSteps.push(index);
+        }
+    });
+
+    const totalSteps = routine.steps.length;
+    const completedCount = completedSteps.length;
+    const completionRate = Math.round((completedCount / totalSteps) * 100);
+
     // 記錄到歷史
     this.history.unshift({
         id: 'history-' + Date.now(),
@@ -666,7 +687,10 @@ App.completeRoutine = function() {
         routineName: routine.name,
         slotId: this.currentSlotId,
         date: now.toISOString(),
-        completed: true
+        completed: true,
+        completedSteps: completedSteps,
+        totalSteps: totalSteps,
+        completionRate: completionRate
     });
 
     // 只保留最近 100 條記錄
@@ -677,13 +701,48 @@ App.completeRoutine = function() {
     this.saveData();
 
     // 顯示完成訊息
-    alert('✅ 保養流程已完成！');
+    let message = '';
+    if (completionRate === 100) {
+        message = `✅ 完美！所有步驟都已完成 (${completedCount}/${totalSteps})`;
+    } else if (completionRate >= 50) {
+        message = `✅ 已記錄！完成了 ${completedCount}/${totalSteps} 個步驟 (${completionRate}%)`;
+    } else if (completionRate > 0) {
+        message = `✅ 已記錄！完成了 ${completedCount}/${totalSteps} 個步驟 (${completionRate}%)\n建議下次嘗試完成更多步驟哦～`;
+    } else {
+        message = '❌ 您沒有勾選任何步驟。\n如果要跳過此流程，請直接關閉即可。';
+        return;
+    }
+
+    alert(message);
 
     // 隱藏流程詳情
     this.closeRoutineDetail();
 
     // 更新今日視圖（會標記已完成）
     this.updateTodayView();
+};
+
+App.deleteHistoryRecord = function(recordId) {
+    // 確認是否要刪除
+    if (!confirm('確定要刪除這筆記錄嗎？刪除後該時段的保養流程將重新開啟。')) {
+        return;
+    }
+
+    // 查找並刪除記錄
+    const index = this.history.findIndex(record => record.id === recordId);
+    if (index !== -1) {
+        this.history.splice(index, 1);
+        this.saveData();
+
+        // 更新歷史記錄視圖
+        this.updateHistoryView();
+
+        // 更新今日視圖（會重新開啟對應的流程）
+        this.updateTodayView();
+
+        // 顯示提示訊息
+        alert('✅ 記錄已刪除，對應的保養流程已重新開啟！');
+    }
 };
 
 App.updateScheduleView = function() {
@@ -952,21 +1011,55 @@ App.updateHistoryView = function() {
         return;
     }
 
+    const today = new Date().toDateString();
+
     last30Days.forEach(record => {
         const date = new Date(record.date);
         const dateStr = date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const isToday = date.toDateString() === today;
+
+        // 生成完成度顯示
+        let statusText = '';
+        let statusClass = 'skipped';
+        if (record.completed) {
+            if (record.completionRate !== undefined) {
+                if (record.completionRate === 100) {
+                    statusText = `✓ ${record.completedSteps.length}/${record.totalSteps}`;
+                    statusClass = 'completed';
+                } else {
+                    statusText = `${record.completionRate}% (${record.completedSteps.length}/${record.totalSteps})`;
+                    statusClass = 'partial';
+                }
+            } else {
+                // 舊記錄沒有 completionRate，顯示為已完成
+                statusText = '✓ 已完成';
+                statusClass = 'completed';
+            }
+        } else {
+            statusText = '跳過';
+        }
 
         const item = document.createElement('div');
         item.className = 'history-item';
         item.innerHTML = `
-            <div>
+            <div style="flex: 1;">
                 <div class="history-routine">${record.routineName}</div>
                 <div class="history-date">${dateStr}</div>
             </div>
-            <span class="history-status ${record.completed ? 'completed' : 'skipped'}">
-                ${record.completed ? '✓ 已完成' : '跳過'}
+            <span class="history-status ${statusClass}">
+                ${statusText}
             </span>
+            ${isToday ? `<button class="btn-delete-record" data-record-id="${record.id}">🗑️</button>` : ''}
         `;
+
+        // 添加刪除按鈕事件監聽器
+        if (isToday) {
+            const deleteBtn = item.querySelector('.btn-delete-record');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteHistoryRecord(record.id);
+            });
+        }
 
         historyList.appendChild(item);
     });
@@ -1540,6 +1633,194 @@ App.applySuggestionReplace = function() {
     document.getElementById('smartSuggestModal').classList.remove('active');
 
     alert('✅ 已清除舊流程並套用 AI 建議！');
+};
+
+// === 集章日曆功能 ===
+
+App.currentCalendarMonth = new Date();
+
+App.updateCalendarView = function(date = this.currentCalendarMonth) {
+    this.currentCalendarMonth = date;
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    // 更新月份標題
+    const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    document.getElementById('calendarMonth').textContent = `${year}年 ${monthNames[month]}`;
+
+    // 生成日曆網格
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    // 添加星期標題
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    weekdays.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+
+    // 獲取本月第一天和最後一天
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const firstDayWeekday = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    // 獲取上個月的最後幾天
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+    // 今天的日期
+    const today = new Date();
+    const todayStr = today.toDateString();
+
+    // 填充上個月的日期
+    for (let i = firstDayWeekday - 1; i >= 0; i--) {
+        const dayNum = prevMonthLastDay - i;
+        const dayDate = new Date(year, month - 1, dayNum);
+        this.createCalendarDay(grid, dayNum, dayDate, true);
+    }
+
+    // 填充本月的日期
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayDate = new Date(year, month, day);
+        this.createCalendarDay(grid, day, dayDate, false, dayDate.toDateString() === todayStr);
+    }
+
+    // 填充下個月的日期（湊滿6週）
+    const totalCells = grid.children.length - 7; // 減去星期標題
+    const remainingCells = (6 * 7) - totalCells;
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayDate = new Date(year, month + 1, day);
+        this.createCalendarDay(grid, day, dayDate, true);
+    }
+
+    // 更新月統計
+    this.updateMonthStats(year, month);
+};
+
+App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = false) {
+    const dateStr = date.toDateString();
+
+    // 獲取當天的所有完成記錄
+    const dayRecords = this.history.filter(record => {
+        const recordDate = new Date(record.date).toDateString();
+        return recordDate === dateStr && record.completed;
+    });
+
+    // 獲取當天應該有的時段數量
+    const weekday = date.getDay();
+    const expectedSlots = this.timeSlots.filter(slot =>
+        slot.enabled && slot.weekdays.includes(weekday)
+    );
+
+    const completedCount = dayRecords.length;
+    const totalCount = expectedSlots.length;
+    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'calendar-day';
+
+    if (isOtherMonth) {
+        dayDiv.classList.add('other-month');
+    }
+
+    if (isToday) {
+        dayDiv.classList.add('today');
+    }
+
+    if (completedCount > 0) {
+        if (completionRate === 100) {
+            dayDiv.classList.add('completed');
+        } else {
+            dayDiv.classList.add('partial');
+        }
+    }
+
+    let dayHTML = `<div class="day-number">${dayNum}</div>`;
+
+    if (completedCount > 0) {
+        if (completionRate === 100) {
+            dayHTML += `<div class="day-icon">🐾</div>`;
+        } else {
+            dayHTML += `<div class="day-completion">${completionRate}%</div>`;
+        }
+    }
+
+    dayDiv.innerHTML = dayHTML;
+
+    // 點擊顯示詳情
+    dayDiv.addEventListener('click', () => {
+        if (dayRecords.length > 0) {
+            this.showDayDetail(date, dayRecords, expectedSlots.length);
+        }
+    });
+
+    grid.appendChild(dayDiv);
+};
+
+App.showDayDetail = function(date, records, totalSlots) {
+    const dateStr = date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+    const completionRate = totalSlots > 0 ? Math.round((records.length / totalSlots) * 100) : 0;
+
+    let details = `📅 ${dateStr}\n\n`;
+    details += `完成度：${records.length}/${totalSlots} (${completionRate}%)\n\n`;
+    details += `完成的流程：\n`;
+    records.forEach(record => {
+        const time = new Date(record.date).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        details += `✓ ${time} - ${record.routineName}\n`;
+    });
+
+    alert(details);
+};
+
+App.updateMonthStats = function(year, month) {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let perfectDays = 0;
+    let totalCompletion = 0;
+    let daysWithSlots = 0;
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(year, month, day);
+        const dateStr = date.toDateString();
+        const weekday = date.getDay();
+
+        // 獲取當天應有的時段
+        const expectedSlots = this.timeSlots.filter(slot =>
+            slot.enabled && slot.weekdays.includes(weekday)
+        );
+
+        if (expectedSlots.length === 0) continue;
+
+        daysWithSlots++;
+
+        // 獲取當天完成的記錄
+        const completedRecords = this.history.filter(record => {
+            const recordDate = new Date(record.date).toDateString();
+            return recordDate === dateStr && record.completed;
+        });
+
+        const completionRate = (completedRecords.length / expectedSlots.length) * 100;
+        totalCompletion += completionRate;
+
+        if (completionRate === 100) {
+            perfectDays++;
+        }
+    }
+
+    const avgCompletion = daysWithSlots > 0 ? Math.round(totalCompletion / daysWithSlots) : 0;
+
+    document.getElementById('monthPerfectDays').textContent = perfectDays;
+    document.getElementById('monthCompletionRate').textContent = avgCompletion + '%';
+};
+
+App.changeMonth = function(offset) {
+    const newDate = new Date(this.currentCalendarMonth);
+    newDate.setMonth(newDate.getMonth() + offset);
+    this.updateCalendarView(newDate);
 };
 
 // 定期檢查通知（每分鐘）
