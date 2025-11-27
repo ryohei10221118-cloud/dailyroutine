@@ -15,6 +15,8 @@ const App = {
     selectedRecords: new Set(),
     slotSelectMode: false,
     selectedSlots: new Set(),
+    routineSelectMode: false,
+    selectedRoutines: new Set(),
 
     // 資料
     routines: {},
@@ -524,6 +526,12 @@ App.setupEventListeners = function() {
     document.getElementById('selectAllSlotsBtn')?.addEventListener('click', () => this.selectAllSlots());
     document.getElementById('deleteSelectedSlotsBtn')?.addEventListener('click', () => this.deleteSelectedSlots());
     document.getElementById('cancelSlotSelectBtn')?.addEventListener('click', () => this.cancelSlotSelectMode());
+
+    // 批量選擇（流程管理）
+    document.getElementById('toggleRoutineSelectModeBtn')?.addEventListener('click', () => this.toggleRoutineSelectMode());
+    document.getElementById('selectAllRoutinesBtn')?.addEventListener('click', () => this.selectAllRoutines());
+    document.getElementById('deleteSelectedRoutinesBtn')?.addEventListener('click', () => this.deleteSelectedRoutines());
+    document.getElementById('cancelRoutineSelectBtn')?.addEventListener('click', () => this.cancelRoutineSelectMode());
 };
 
 App.switchTab = function(tabName) {
@@ -542,6 +550,7 @@ App.switchTab = function(tabName) {
     // 更新對應標籤的內容
     if (tabName === 'today') this.updateTodayView();
     if (tabName === 'calendar') this.updateCalendarView();
+    if (tabName === 'routines') this.updateRoutinesView();
     if (tabName === 'schedule') this.updateScheduleView();
     if (tabName === 'products') this.updateProductsView();
     if (tabName === 'history') this.updateHistoryView();
@@ -1055,6 +1064,186 @@ App.updateSlotRoutine = function(slotId, routineId) {
         this.updateTodayView();
         this.updateWeeklyScheduleView();
     }
+};
+
+// === 流程管理功能 ===
+
+App.updateRoutinesView = function() {
+    const list = document.getElementById('routinesList');
+    list.innerHTML = '';
+
+    const routines = Object.values(this.routines);
+    if (routines.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無保養流程<br>使用「AI 智能建議」自動生成流程</div>';
+        return;
+    }
+
+    routines.forEach(routine => {
+        const card = document.createElement('div');
+        card.className = 'routine-card';
+
+        // 選擇模式：顯示複選框
+        if (this.routineSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedRoutines.has(routine.id);
+            card.innerHTML = `
+                <input type="checkbox" class="routine-checkbox" data-routine-id="${routine.id}" ${isChecked ? 'checked' : ''}>
+                <div class="routine-content" style="flex: 1;">
+                    <div class="routine-name">${routine.name}</div>
+                    <div class="routine-type">${this.getRoutineTypeName(routine.type)}</div>
+                    <div class="routine-steps-count">${routine.steps.length} 個步驟</div>
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.routine-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedRoutines.add(routine.id);
+                } else {
+                    this.selectedRoutines.delete(routine.id);
+                }
+                this.updateRoutineDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示流程詳情
+            let stepsHTML = '<ul class="routine-steps-list">';
+            routine.steps.forEach((step, index) => {
+                stepsHTML += `<li>${index + 1}. ${step.text}${step.notes ? ' <span class="step-hint">(' + step.notes + ')</span>' : ''}</li>`;
+            });
+            stepsHTML += '</ul>';
+
+            card.innerHTML = `
+                <div class="routine-header-row">
+                    <div class="routine-name">${routine.name}</div>
+                    <div class="routine-type-badge">${this.getRoutineTypeName(routine.type)}</div>
+                </div>
+                <div class="routine-meta">${routine.steps.length} 個步驟${routine.warnings ? ' · ' + routine.warnings.length + ' 個注意事項' : ''}</div>
+                ${stepsHTML}
+                ${routine.warnings && routine.warnings.length > 0 ? `
+                    <div class="routine-warnings">
+                        <div class="warning-title">⚠️ 注意事項</div>
+                        ${routine.warnings.map(w => `<div class="warning-item">• ${w}</div>`).join('')}
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        list.appendChild(card);
+    });
+};
+
+App.getRoutineTypeName = function(type) {
+    const names = {
+        'morning-regular': '一般早晨',
+        'morning-bha': '水楊酸早晨',
+        'sunscreen': '出門防曬',
+        'night-simple': '夜間保養',
+        'night-mask-bright': '亮白面膜',
+        'night-mask-repair': '修護面膜',
+        'night-mask-calm': '舒緩面膜',
+        'morning': '早晨保養',
+        'night': '夜間保養',
+        'custom': '自訂流程'
+    };
+    return names[type] || type;
+};
+
+App.toggleRoutineSelectMode = function() {
+    this.routineSelectMode = !this.routineSelectMode;
+    this.selectedRoutines.clear();
+
+    const toggleBtn = document.getElementById('toggleRoutineSelectModeBtn');
+    const batchActions = document.getElementById('routineBatchActions');
+
+    if (this.routineSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateRoutinesView();
+};
+
+App.selectAllRoutines = function() {
+    const checkboxes = document.querySelectorAll('.routine-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedRoutines.delete(checkbox.dataset.routineId);
+        });
+        document.getElementById('selectAllRoutinesBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedRoutines.add(checkbox.dataset.routineId);
+        });
+        document.getElementById('selectAllRoutinesBtn').textContent = '取消全選';
+    }
+
+    this.updateRoutineDeleteButtonState();
+};
+
+App.updateRoutineDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedRoutinesBtn');
+    const selectAllBtn = document.getElementById('selectAllRoutinesBtn');
+    const checkboxes = document.querySelectorAll('.routine-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedRoutines.size === 0;
+    deleteBtn.textContent = this.selectedRoutines.size > 0
+        ? `刪除選中 (${this.selectedRoutines.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedRoutines = function() {
+    if (this.selectedRoutines.size === 0) return;
+
+    const count = this.selectedRoutines.size;
+    if (!confirm(`確定要刪除 ${count} 個流程嗎？\n\n注意：使用這些流程的時段將變為「未設定」狀態。`)) {
+        return;
+    }
+
+    // 刪除選中的流程
+    this.selectedRoutines.forEach(routineId => {
+        delete this.routines[routineId];
+
+        // 將使用此流程的時段設為未設定
+        this.timeSlots.forEach(slot => {
+            if (slot.routine === routineId) {
+                slot.routine = '';
+            }
+        });
+    });
+
+    this.selectedRoutines.clear();
+    this.saveData();
+
+    // 更新所有視圖
+    this.updateRoutinesView();
+    this.updateScheduleView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 個流程！`);
+};
+
+App.cancelRoutineSelectMode = function() {
+    this.routineSelectMode = false;
+    this.selectedRoutines.clear();
+
+    document.getElementById('toggleRoutineSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleRoutineSelectModeBtn').style.background = '';
+    document.getElementById('routineBatchActions').style.display = 'none';
+
+    this.updateRoutinesView();
 };
 
 App.updateProductsView = function() {

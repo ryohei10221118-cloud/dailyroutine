@@ -25,6 +25,7 @@
             <nav class="tab-nav">
                 <button class="tab-btn active" data-tab="today">今日流程</button>
                 <button class="tab-btn" data-tab="calendar">集章日曆</button>
+                <button class="tab-btn" data-tab="routines">流程管理</button>
                 <button class="tab-btn" data-tab="schedule">時段設定</button>
                 <button class="tab-btn" data-tab="products">產品管理</button>
                 <button class="tab-btn" data-tab="history">使用記錄</button>
@@ -83,6 +84,24 @@
                     <div id="weeklyScheduleView">
                         <!-- 動態生成 -->
                     </div>
+                </div>
+            </section>
+
+            <!-- 流程管理頁面 -->
+            <section class="tab-content" id="routines-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📋 流程管理</h2>
+                    <button class="btn-select-mode" id="toggleRoutineSelectModeBtn">選擇</button>
+                </div>
+
+                <div class="batch-actions" id="routineBatchActions" style="display: none;">
+                    <button class="btn-select-all" id="selectAllRoutinesBtn">全選</button>
+                    <button class="btn-delete-selected" id="deleteSelectedRoutinesBtn">刪除選中</button>
+                    <button class="btn-cancel-select" id="cancelRoutineSelectBtn">取消</button>
+                </div>
+
+                <div class="routines-list" id="routinesList">
+                    <!-- 動態生成 -->
                 </div>
             </section>
 

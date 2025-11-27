@@ -499,6 +499,122 @@ h3 {
     align-items: center;
 }
 
+/* 流程管理 */
+.routines-list {
+    display: grid;
+    gap: 15px;
+}
+
+.routine-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: all 0.2s;
+}
+
+.routine-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.routine-card.select-mode {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+}
+
+.routine-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin-right: 12px;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.routine-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.routine-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.routine-type {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.routine-type-badge {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.routine-steps-count {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.routine-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.routine-steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.routine-steps-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.routine-steps-list li:last-child {
+    border-bottom: none;
+}
+
+.step-hint {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.routine-warnings {
+    margin-top: 15px;
+    padding: 12px;
+    background: #FFF3E0;
+    border-radius: 8px;
+    border-left: 4px solid #F57C00;
+}
+
+.warning-title {
+    font-weight: 600;
+    color: #F57C00;
+    margin-bottom: 8px;
+}
+
+.warning-item {
+    font-size: 13px;
+    color: #E65100;
+    margin: 4px 0;
+}
+
 /* 產品網格 */
 .products-grid {
     display: grid;
