@@ -43,7 +43,10 @@
 
                 <!-- 當前流程詳情 -->
                 <div class="current-routine" id="currentRoutine" style="display: none;">
-                    <h3 class="routine-title"></h3>
+                    <div class="routine-header">
+                        <h3 class="routine-title"></h3>
+                        <button class="btn-close-routine" id="closeRoutineBtn">✕</button>
+                    </div>
                     <div class="steps-list">
                         <!-- 動態生成步驟 -->
                     </div>
@@ -110,7 +113,7 @@
 
         <!-- 底部設置按鈕 -->
         <footer class="app-footer">
-            <button class="btn-settings" id="settingsBtn">⚙️ 設定</button>
+            <button class="btn-smart-suggest" id="smartSuggestBtn">✨ AI 智能建議</button>
             <button class="btn-notification" id="notificationBtn">🔔 啟用通知</button>
         </footer>
     </div>
@@ -211,6 +214,70 @@
             <div class="modal-footer">
                 <button class="btn-secondary modal-close">關閉</button>
                 <button class="btn-primary" id="startRoutineBtn">開始執行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - AI 智能建議 -->
+    <div class="modal" id="smartSuggestModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>✨ AI 智能保養建議</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="smart-suggest-intro">
+                    <p>📝 請告訴我您擁有的所有保養品，我會為您分析並生成最佳保養流程！</p>
+                </div>
+
+                <div class="form-group">
+                    <label>您的保養品清單</label>
+                    <textarea id="productsInput" rows="8" placeholder="例如：&#10;洗面乳&#10;綠大罐 茶樹 Toner Pad&#10;紫色 水楊酸 Pad&#10;白綠瓶 Ssuk Latte Cream Toner&#10;綠滴管 積雪草精華&#10;乳液&#10;防曬 SPF42&#10;Mediheal 玫瑰面膜&#10;...等等（每行一個產品）"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>您的作息時間（選填）</label>
+                    <textarea id="scheduleInput" rows="3" placeholder="例如：&#10;晚上 8:30 起床&#10;早上 7:30 出門上班&#10;晚上 10-12點 睡前"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>肌膚狀況與需求（選填）</label>
+                    <textarea id="skinConcernsInput" rows="3" placeholder="例如：T字容易出油、兩頰敏感、有粉刺問題、希望美白..."></textarea>
+                </div>
+
+                <div class="smart-suggest-result" id="smartSuggestResult" style="display: none;">
+                    <h4>🎯 建議的保養流程</h4>
+                    <div id="suggestResultContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">取消</button>
+                <button class="btn-primary" id="generateSuggestBtn">生成建議</button>
+                <button class="btn-success" id="applySuggestBtn" style="display: none;">一鍵套用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 流程衝突確認 -->
+    <div class="modal" id="conflictModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ 發現現有流程</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>您已經有設定的保養流程和時段。套用 AI 建議會：</p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>保留您現有的產品資料</li>
+                    <li>新增 AI 建議的流程</li>
+                    <li>新增 AI 建議的時段</li>
+                </ul>
+                <p><strong>請選擇處理方式：</strong></p>
+            </div>
+            <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+                <button class="btn-primary" id="mergeRoutinesBtn" style="width: 100%;">合併流程（保留現有+新增建議）</button>
+                <button class="btn-danger" id="replaceRoutinesBtn" style="width: 100%;">替換流程（清除現有+套用建議）</button>
+                <button class="btn-secondary modal-close" style="width: 100%;">取消</button>
             </div>
         </div>
     </div>
