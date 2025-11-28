@@ -1277,21 +1277,34 @@ h3 {
 .weekday-selector label {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    justify-content: center;
+    padding: 10px 16px;
     background: var(--bg-secondary);
+    border: 2px solid transparent;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
     font-weight: normal;
+    user-select: none;
+    min-width: 60px;
+}
+
+.weekday-selector label:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .weekday-selector label:has(input:checked) {
     background: var(--primary-color);
     color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(155, 135, 181, 0.3);
+    font-weight: 500;
 }
 
 .weekday-selector input {
-    margin-right: 6px;
+    display: none;
 }
 
 /* 響應式設計 */
