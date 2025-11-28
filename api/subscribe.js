@@ -3,7 +3,7 @@
  * POST /api/subscribe
  */
 
-const { kv } = require('@vercel/kv');
+const { kv } = require('./redis');
 
 module.exports = async (req, res) => {
   // 設定 CORS
