@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "VAPID_PUBLIC_KEY": "@vapid_public_key",
+    "VAPID_PRIVATE_KEY": "@vapid_private_key",
+    "VAPID_SUBJECT": "@vapid_subject"
+  },
+  "crons": [
+    {
+      "path": "/api/send-notifications",
+      "schedule": "* * * * *"
+    }
+  ]
+}
