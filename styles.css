@@ -1292,7 +1292,7 @@ h3 {
 /* 響應式設計 */
 @media (max-width: 480px) {
     .main-content {
-        padding: 8px;
+        padding: 4px;
     }
 
     .stats-cards {
@@ -1308,36 +1308,39 @@ h3 {
         padding: 12px 8px;
     }
 
-    /* 日曆優化 */
+    /* 日曆優化 - 最激進版本 */
     .calendar-grid {
-        gap: 1px;
-        padding: 3px;
-        margin: 8px 0;
-        border-radius: 8px;
+        gap: 0;
+        padding: 0;
+        margin: 4px 0;
+        border-radius: 4px;
+        box-shadow: none;
     }
 
     .calendar-day {
-        min-height: 38px;
-        font-size: 10px;
-        padding: 1px;
-        border-radius: 4px;
+        aspect-ratio: unset !important;
+        min-height: 32px;
+        max-height: 45px;
+        font-size: 9px;
+        padding: 2px 1px;
+        border-radius: 2px;
     }
 
     .day-number {
-        font-size: 10px;
-        margin-bottom: 2px;
+        font-size: 9px;
+        margin-bottom: 1px;
     }
 
     .day-icon {
-        font-size: 14px;
+        font-size: 12px;
     }
 
     .day-completion {
-        font-size: 8px;
+        font-size: 7px;
     }
 
     .calendar-day-header {
-        font-size: 10px;
+        font-size: 9px;
         padding: 2px 0;
     }
 
