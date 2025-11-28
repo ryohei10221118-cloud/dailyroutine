@@ -409,6 +409,48 @@ h3 {
     background: var(--border-color);
 }
 
+/* 星期篩選器 */
+.weekday-filter {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.weekday-filter label {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.weekday-filter-select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    color: var(--text-primary);
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.weekday-filter-select:hover {
+    border-color: var(--primary-color);
+}
+
+.weekday-filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
 /* 時段列表 */
 .time-slots-list {
     display: flex;
@@ -1154,7 +1196,7 @@ h3 {
 /* 響應式設計 */
 @media (max-width: 480px) {
     .main-content {
-        padding: 15px;
+        padding: 10px;
     }
 
     .stats-cards {
@@ -1172,34 +1214,36 @@ h3 {
 
     /* 日曆優化 */
     .calendar-grid {
-        gap: 4px;
-        padding: 10px;
+        gap: 2px;
+        padding: 5px;
+        margin: 10px 0;
     }
 
     .calendar-day {
-        min-height: 45px;
-        font-size: 12px;
+        min-height: 40px;
+        font-size: 11px;
+        padding: 2px;
     }
 
     .day-number {
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .day-icon {
-        font-size: 18px;
+        font-size: 16px;
     }
 
     .day-completion {
-        font-size: 10px;
+        font-size: 9px;
     }
 
     .calendar-day-header {
-        font-size: 12px;
-        padding: 4px;
+        font-size: 11px;
+        padding: 2px;
     }
 
     .calendar-controls {
-        padding: 10px;
+        padding: 8px;
     }
 
     .calendar-month {
@@ -1210,6 +1254,27 @@ h3 {
         width: 32px;
         height: 32px;
         font-size: 16px;
+    }
+
+    /* Modal 和表單優化 */
+    .modal-content {
+        width: calc(100% - 20px);
+        margin: 10px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="time"],
+    .form-group input[type="number"],
+    .form-group select,
+    .form-group textarea {
+        padding: 8px;
+        font-size: 16px;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .form-group input[type="time"] {
+        min-height: 44px;
     }
 }
 
