@@ -1292,7 +1292,7 @@ h3 {
 /* 響應式設計 */
 @media (max-width: 480px) {
     .main-content {
-        padding: 10px;
+        padding: 8px;
     }
 
     .stats-cards {
@@ -1310,46 +1310,76 @@ h3 {
 
     /* 日曆優化 */
     .calendar-grid {
-        gap: 2px;
-        padding: 5px;
-        margin: 10px 0;
+        gap: 1px;
+        padding: 3px;
+        margin: 8px 0;
+        border-radius: 8px;
     }
 
     .calendar-day {
-        min-height: 40px;
-        font-size: 11px;
-        padding: 2px;
+        min-height: 38px;
+        font-size: 10px;
+        padding: 1px;
+        border-radius: 4px;
     }
 
     .day-number {
-        font-size: 11px;
+        font-size: 10px;
+        margin-bottom: 2px;
     }
 
     .day-icon {
-        font-size: 16px;
+        font-size: 14px;
     }
 
     .day-completion {
-        font-size: 9px;
+        font-size: 8px;
     }
 
     .calendar-day-header {
-        font-size: 11px;
-        padding: 2px;
+        font-size: 10px;
+        padding: 2px 0;
     }
 
     .calendar-controls {
-        padding: 8px;
+        padding: 6px;
+        margin: 8px 0;
     }
 
     .calendar-month {
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .btn-calendar-nav {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+    }
+
+    .calendar-legend {
+        padding: 8px;
+        margin: 8px 0;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        font-size: 12px;
+        gap: 4px;
+    }
+
+    .legend-icon {
         font-size: 16px;
+    }
+
+    .calendar-stats {
+        padding: 12px;
+        margin-top: 8px;
+    }
+
+    .calendar-stat-item {
+        padding: 8px;
+        margin-bottom: 6px;
     }
 
     /* Modal 和表單優化 */
