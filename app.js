@@ -721,6 +721,17 @@ App.showRoutineDetail = function(routineId, slotId = null) {
         stepHTML += `</div>`;
         stepDiv.innerHTML = stepHTML;
 
+        // 添加点击事件，让整个区块可切换复选框
+        stepDiv.addEventListener('click', function() {
+            const checkbox = this.querySelector('.step-checkbox');
+            checkbox.checked = !checkbox.checked;
+            if (checkbox.checked) {
+                this.classList.add('completed');
+            } else {
+                this.classList.remove('completed');
+            }
+        });
+
         stepsList.appendChild(stepDiv);
     });
 
@@ -1924,11 +1935,11 @@ App.checkAndSendNotifications = function() {
         const routine = this.routines[slot.routine];
         if (!routine) return;
 
-        // 檢查是否到了通知時間（提前5分鐘通知）
+        // 檢查是否到了通知時間（準時通知，不提前）
         const slotTime = slot.time;
         const [slotHour, slotMinute] = slotTime.split(':').map(Number);
         const notificationTime = new Date(now);
-        notificationTime.setHours(slotHour, slotMinute - 5, 0, 0);
+        notificationTime.setHours(slotHour, slotMinute, 0, 0);
 
         const currentTimeMs = now.getTime();
         const notificationTimeMs = notificationTime.getTime();
@@ -2805,12 +2816,16 @@ App.showReminderModal = function(reminderId = null) {
                 });
                 this.toggleReminderType('recurring');
             }
+
+            // 設定提前通知時間
+            document.getElementById('reminderAdvanceTime').value = reminder.advanceTime || 0;
         }
     } else {
         document.getElementById('reminderTitle').value = '';
         document.getElementById('reminderContent').value = '';
         document.getElementById('reminderTime').value = '';
         document.getElementById('reminderDatetime').value = '';
+        document.getElementById('reminderAdvanceTime').value = 0;
         document.querySelector('input[name="reminderType"][value="recurring"]').checked = true;
         document.querySelectorAll('.reminder-weekday').forEach(input => {
             input.checked = false;
@@ -2835,11 +2850,14 @@ App.saveReminder = function() {
         return;
     }
 
+    const advanceTime = parseInt(document.getElementById('reminderAdvanceTime').value) || 0;
+
     let reminderData = {
         title,
         content,
         type,
-        enabled: true
+        enabled: true,
+        advanceTime
     };
 
     if (type === 'recurring') {

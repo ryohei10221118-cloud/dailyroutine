@@ -275,19 +275,31 @@ h3 {
     padding: 12px;
     background: var(--bg-secondary);
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    border: 2px solid transparent;
+}
+
+.step-item:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .step-item.completed {
     background: #f2eef7;
+    border-color: var(--primary-color);
 }
 
 .step-checkbox {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     margin-right: 12px;
-    cursor: pointer;
     flex-shrink: 0;
+    pointer-events: none;
+    accent-color: var(--primary-color);
 }
 
 .step-content {
@@ -1042,10 +1054,12 @@ h3 {
 
 .btn-settings,
 .btn-notification,
-.btn-smart-suggest {
+.btn-smart-suggest,
+.btn-test-notification {
     flex: 1;
     padding: 12px;
     font-size: 14px;
+    border-radius: 12px;
 }
 
 .btn-settings {
@@ -1348,6 +1362,11 @@ h3 {
 @media (max-width: 480px) {
     .main-content {
         padding: 8px;
+        overflow-x: hidden;
+    }
+
+    .tab-content {
+        overflow-x: hidden;
     }
 
     .stats-cards {
@@ -1365,10 +1384,12 @@ h3 {
 
     /* 日曆優化 */
     .calendar-grid {
-        gap: 1px;
-        padding: 3px;
-        margin: 8px 0;
+        gap: 2px;
+        padding: 6px;
+        margin: 8px -4px;
         border-radius: 8px;
+        width: calc(100% + 8px);
+        max-width: none;
     }
 
     .calendar-day {

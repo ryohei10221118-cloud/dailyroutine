@@ -42,6 +42,29 @@ function getCurrentDatetime() {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+// 計算提前通知的時間
+function getAdvancedTime(time, advanceMinutes = 0) {
+  if (!advanceMinutes) return time;
+  const [hours, minutes] = time.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes - advanceMinutes;
+  const newHours = Math.floor(totalMinutes / 60) % 24;
+  const newMinutes = totalMinutes % 60;
+  return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+}
+
+// 計算提前通知的日期時間
+function getAdvancedDatetime(datetime, advanceMinutes = 0) {
+  if (!advanceMinutes) return datetime;
+  const dt = new Date(datetime);
+  dt.setMinutes(dt.getMinutes() - advanceMinutes);
+  const year = dt.getFullYear();
+  const month = (dt.getMonth() + 1).toString().padStart(2, '0');
+  const day = dt.getDate().toString().padStart(2, '0');
+  const hours = dt.getHours().toString().padStart(2, '0');
+  const minutes = dt.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 module.exports = async (req, res) => {
   try {
     const currentTime = getCurrentTime();
@@ -107,23 +130,32 @@ module.exports = async (req, res) => {
 
         for (const reminder of reminders) {
           let shouldSend = false;
+          const advanceTime = reminder.advanceTime || 0;
 
           // 檢查重複提醒
           if ((!reminder.type || reminder.type === 'recurring') &&
               reminder.enabled &&
-              reminder.time === currentTime &&
+              reminder.time &&
               reminder.weekdays &&
               reminder.weekdays.includes(currentWeekday)) {
-            shouldSend = true;
+            const notificationTime = getAdvancedTime(reminder.time, advanceTime);
+            if (notificationTime === currentTime) {
+              shouldSend = true;
+            }
           }
 
           // 檢查一次性提醒
           if (reminder.type === 'once' &&
               reminder.enabled &&
-              reminder.datetime === currentDatetime) {
-            shouldSend = true;
-            needsUpdate = true; // 一次性提醒發送後需要移除
-          } else if (reminder.type === 'once') {
+              reminder.datetime) {
+            const notificationDatetime = getAdvancedDatetime(reminder.datetime, advanceTime);
+            if (notificationDatetime === currentDatetime) {
+              shouldSend = true;
+              needsUpdate = true; // 一次性提醒發送後需要移除
+            }
+          }
+
+          if (reminder.type === 'once') {
             // 保留未到期的一次性提醒
             updatedReminders.push(reminder);
           } else {
