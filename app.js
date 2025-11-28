@@ -9,6 +9,7 @@ const App = {
     currentSlotId: null,
     editingSlotId: null,
     editingProductId: null,
+    editingReminderId: null,
     notificationPermission: false,
     smartSuggestion: null,
     selectMode: false,
@@ -24,6 +25,7 @@ const App = {
     routines: {},
     products: {},
     timeSlots: [],
+    reminders: [],
     history: [],
 
     // 初始化
@@ -44,6 +46,7 @@ const App = {
             this.routines = data.routines || {};
             this.products = data.products || {};
             this.timeSlots = data.timeSlots || [];
+            this.reminders = data.reminders || [];
             this.history = data.history || [];
         }
     },
@@ -54,6 +57,7 @@ const App = {
             routines: this.routines,
             products: this.products,
             timeSlots: this.timeSlots,
+            reminders: this.reminders,
             history: this.history
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
@@ -502,6 +506,13 @@ App.setupEventListeners = function() {
         document.getElementById('productModal').classList.remove('active');
     });
 
+    // 提醒管理
+    document.getElementById('addReminderBtn')?.addEventListener('click', () => this.showReminderModal());
+    document.getElementById('saveReminderBtn')?.addEventListener('click', () => this.saveReminder());
+    document.getElementById('cancelReminderBtn')?.addEventListener('click', () => {
+        document.getElementById('reminderModal').classList.remove('active');
+    });
+
     // 通知權限
     document.getElementById('notificationBtn')?.addEventListener('click', () => this.requestNotificationPermission());
 
@@ -539,6 +550,9 @@ App.setupEventListeners = function() {
     document.getElementById('cancelSlotSelectBtn')?.addEventListener('click', () => this.cancelSlotSelectMode());
 
     // 批量修改時段
+    document.getElementById('batchEditTimeCheck')?.addEventListener('change', (e) => {
+        document.getElementById('batchEditTime').disabled = !e.target.checked;
+    });
     document.getElementById('batchEditRoutineCheck')?.addEventListener('change', (e) => {
         document.getElementById('batchEditRoutine').disabled = !e.target.checked;
     });
@@ -583,6 +597,7 @@ App.switchTab = function(tabName) {
     if (tabName === 'calendar') this.updateCalendarView();
     if (tabName === 'routines') this.updateRoutinesView();
     if (tabName === 'schedule') this.updateScheduleView();
+    if (tabName === 'reminders') this.updateRemindersView();
     if (tabName === 'products') this.updateProductsView();
     if (tabName === 'history') this.updateHistoryView();
 };
@@ -1127,6 +1142,10 @@ App.showBatchEditSlotModal = function() {
     });
 
     // 重置表單
+    document.getElementById('batchEditTimeCheck').checked = false;
+    document.getElementById('batchEditTime').disabled = true;
+    document.getElementById('batchEditTime').value = '';
+
     document.getElementById('batchEditRoutineCheck').checked = false;
     document.getElementById('batchEditRoutine').disabled = true;
     document.getElementById('batchEditRoutine').value = '';
@@ -1141,10 +1160,11 @@ App.showBatchEditSlotModal = function() {
 };
 
 App.applyBatchEditSlots = function() {
+    const editTime = document.getElementById('batchEditTimeCheck').checked;
     const editRoutine = document.getElementById('batchEditRoutineCheck').checked;
     const editWeekdays = document.getElementById('batchEditWeekdaysCheck').checked;
 
-    if (!editRoutine && !editWeekdays) {
+    if (!editTime && !editRoutine && !editWeekdays) {
         alert('請至少選擇一項要修改的內容！');
         return;
     }
@@ -1153,6 +1173,13 @@ App.applyBatchEditSlots = function() {
     this.selectedSlots.forEach(slotId => {
         const slot = this.timeSlots.find(s => s.id === slotId);
         if (slot) {
+            if (editTime) {
+                const newTime = document.getElementById('batchEditTime').value;
+                if (newTime) {
+                    slot.time = newTime;
+                }
+            }
+
             if (editRoutine) {
                 const newRoutine = document.getElementById('batchEditRoutine').value;
                 if (newRoutine) {
@@ -2633,6 +2660,135 @@ App.cancelProductSelectMode = function() {
     this.updateProductsView();
 };
 
+// === 提醒管理功能 ===
+
+App.updateRemindersView = function() {
+    const list = document.getElementById('remindersList');
+    list.innerHTML = '';
+
+    if (this.reminders.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無提醒<br>點擊「新增提醒」建立您的第一個提醒</div>';
+        return;
+    }
+
+    // 按時間排序
+    const sortedReminders = [...this.reminders].sort((a, b) => a.time.localeCompare(b.time));
+
+    sortedReminders.forEach(reminder => {
+        const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const daysText = reminder.weekdays.map(d => weekdayNames[d]).join('、');
+
+        const card = document.createElement('div');
+        card.className = 'reminder-card';
+        card.innerHTML = `
+            <div class="reminder-info">
+                <div class="reminder-title">${reminder.title}</div>
+                <div class="reminder-content">${reminder.content || ''}</div>
+                <div class="reminder-time">⏰ ${reminder.time}</div>
+                <div class="reminder-days">週${daysText}</div>
+            </div>
+            <div class="reminder-actions">
+                <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
+                <button class="btn-icon delete" data-id="${reminder.id}">🗑️</button>
+            </div>
+        `;
+
+        card.querySelector('.edit').addEventListener('click', () => this.editReminder(reminder.id));
+        card.querySelector('.delete').addEventListener('click', () => this.deleteReminder(reminder.id));
+
+        list.appendChild(card);
+    });
+};
+
+App.showReminderModal = function(reminderId = null) {
+    this.editingReminderId = reminderId;
+    const modal = document.getElementById('reminderModal');
+
+    if (reminderId) {
+        const reminder = this.reminders.find(r => r.id === reminderId);
+        if (reminder) {
+            document.getElementById('reminderTitle').value = reminder.title;
+            document.getElementById('reminderContent').value = reminder.content || '';
+            document.getElementById('reminderTime').value = reminder.time;
+
+            // 設定星期選擇
+            document.querySelectorAll('.reminder-weekday').forEach(input => {
+                input.checked = reminder.weekdays.includes(parseInt(input.value));
+            });
+        }
+    } else {
+        document.getElementById('reminderTitle').value = '';
+        document.getElementById('reminderContent').value = '';
+        document.getElementById('reminderTime').value = '';
+        document.querySelectorAll('.reminder-weekday').forEach(input => {
+            input.checked = false;
+        });
+    }
+
+    modal.classList.add('active');
+};
+
+App.editReminder = function(id) {
+    this.showReminderModal(id);
+};
+
+App.saveReminder = function() {
+    const title = document.getElementById('reminderTitle').value.trim();
+    const content = document.getElementById('reminderContent').value.trim();
+    const time = document.getElementById('reminderTime').value;
+
+    if (!title || !time) {
+        alert('請填寫提醒標題和時間！');
+        return;
+    }
+
+    const weekdays = [];
+    document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
+        weekdays.push(parseInt(input.value));
+    });
+
+    if (weekdays.length === 0) {
+        alert('請至少選擇一個重複日期！');
+        return;
+    }
+
+    if (this.editingReminderId) {
+        // 編輯現有提醒
+        const reminder = this.reminders.find(r => r.id === this.editingReminderId);
+        if (reminder) {
+            reminder.title = title;
+            reminder.content = content;
+            reminder.time = time;
+            reminder.weekdays = weekdays;
+        }
+    } else {
+        // 新增提醒
+        const newReminder = {
+            id: 'reminder-' + Date.now(),
+            title,
+            content,
+            time,
+            weekdays,
+            enabled: true
+        };
+        this.reminders.push(newReminder);
+    }
+
+    this.saveData();
+    this.updateRemindersView();
+
+    document.getElementById('reminderModal').classList.remove('active');
+    this.editingReminderId = null;
+};
+
+App.deleteReminder = function(id) {
+    if (!confirm('確定要刪除此提醒嗎？')) return;
+
+    this.reminders = this.reminders.filter(r => r.id !== id);
+    this.saveData();
+    this.updateRemindersView();
+};
+
 // 定期檢查通知（每分鐘）
 setInterval(() => {
     if (App.notificationPermission) {
@@ -2650,6 +2806,17 @@ setInterval(() => {
                         requireInteraction: true
                     });
                 }
+            }
+        });
+
+        // 檢查提醒
+        App.reminders.forEach(reminder => {
+            if (reminder.enabled && reminder.time === currentTime && reminder.weekdays.includes(weekday)) {
+                new Notification(reminder.title, {
+                    body: reminder.content || '提醒時間到了！',
+                    icon: '/icon-192.png',
+                    requireInteraction: true
+                });
             }
         });
     }

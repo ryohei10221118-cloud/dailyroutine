@@ -27,6 +27,7 @@
                 <button class="tab-btn" data-tab="calendar">集章日曆</button>
                 <button class="tab-btn" data-tab="routines">流程管理</button>
                 <button class="tab-btn" data-tab="schedule">時段設定</button>
+                <button class="tab-btn" data-tab="reminders">提醒</button>
                 <button class="tab-btn" data-tab="products">產品管理</button>
                 <button class="tab-btn" data-tab="history">使用記錄</button>
             </nav>
@@ -118,6 +119,20 @@
                 </div>
 
                 <div class="routines-list" id="routinesList">
+                    <!-- 動態生成 -->
+                </div>
+            </section>
+
+            <!-- 提醒頁面 -->
+            <section class="tab-content" id="reminders-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">⏰ 自訂提醒</h2>
+                    <button class="btn-add-small" id="addReminderBtn">+ 新增提醒</button>
+                </div>
+
+                <p class="section-desc">建立不需要關聯保養流程的純提醒事項</p>
+
+                <div class="reminders-list" id="remindersList">
                     <!-- 動態生成 -->
                 </div>
             </section>
@@ -281,6 +296,12 @@
                 </p>
                 <div class="form-group">
                     <label>
+                        <input type="checkbox" id="batchEditTimeCheck"> 修改提醒時間
+                    </label>
+                    <input type="time" id="batchEditTime" disabled>
+                </div>
+                <div class="form-group">
+                    <label>
                         <input type="checkbox" id="batchEditRoutineCheck"> 修改關聯流程
                     </label>
                     <select id="batchEditRoutine" disabled>
@@ -305,6 +326,46 @@
             <div class="modal-footer">
                 <button class="btn-secondary" id="cancelBatchEditBtn">取消</button>
                 <button class="btn-primary" id="saveBatchEditBtn">套用修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 新增提醒 -->
+    <div class="modal" id="reminderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增/編輯提醒</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>提醒標題</label>
+                    <input type="text" id="reminderTitle" placeholder="例如：喝水提醒">
+                </div>
+                <div class="form-group">
+                    <label>提醒內容</label>
+                    <textarea id="reminderContent" placeholder="提醒的詳細內容..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>提醒時間</label>
+                    <input type="time" id="reminderTime">
+                </div>
+                <div class="form-group">
+                    <label>重複日期</label>
+                    <div class="weekday-selector">
+                        <label><input type="checkbox" value="1" class="reminder-weekday"> 週一</label>
+                        <label><input type="checkbox" value="2" class="reminder-weekday"> 週二</label>
+                        <label><input type="checkbox" value="3" class="reminder-weekday"> 週三</label>
+                        <label><input type="checkbox" value="4" class="reminder-weekday"> 週四</label>
+                        <label><input type="checkbox" value="5" class="reminder-weekday"> 週五</label>
+                        <label><input type="checkbox" value="6" class="reminder-weekday"> 週六</label>
+                        <label><input type="checkbox" value="0" class="reminder-weekday"> 週日</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelReminderBtn">取消</button>
+                <button class="btn-primary" id="saveReminderBtn">保存</button>
             </div>
         </div>
     </div>
