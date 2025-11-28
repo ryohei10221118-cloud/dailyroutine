@@ -976,7 +976,7 @@ h3 {
 .modal-content {
     background: white;
     border-radius: 12px;
-    width: 100%;
+    width: calc(100% - 40px);
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
@@ -1107,7 +1107,7 @@ h3 {
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 15px;
@@ -1115,6 +1115,7 @@ h3 {
     transition: border-color 0.2s;
     box-sizing: border-box;
     max-width: 100%;
+    min-width: 0;
 }
 
 .form-group input:focus,
@@ -1397,8 +1398,10 @@ h3 {
     border-radius: 12px;
     box-shadow: var(--shadow);
     margin: 15px 0;
+    width: 100%;
     max-width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .calendar-day-header {

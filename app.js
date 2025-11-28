@@ -1689,41 +1689,74 @@ App.requestNotificationPermission = async function() {
 App.scheduleNotifications = function() {
     if (!this.notificationPermission) return;
 
-    // 清除現有的通知計時器（簡化版本，實際需要更複雜的管理）
-    // 為每個時段設置通知
+    // 清除現有的檢查計時器
+    if (this.notificationInterval) {
+        clearInterval(this.notificationInterval);
+    }
+
+    // 每分鐘檢查一次是否需要發送通知
+    this.notificationInterval = setInterval(() => {
+        this.checkAndSendNotifications();
+    }, 60000); // 每分鐘檢查一次
+
+    // 立即執行一次檢查
+    this.checkAndSendNotifications();
+};
+
+App.checkAndSendNotifications = function() {
+    if (!this.notificationPermission) return;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const today = now.toDateString();
+
+    // 獲取今天已發送的通知記錄
+    const sentToday = JSON.parse(localStorage.getItem('sentNotifications') || '{}');
+    if (sentToday.date !== today) {
+        // 新的一天，清除記錄
+        localStorage.setItem('sentNotifications', JSON.stringify({ date: today, slots: [] }));
+        sentToday.date = today;
+        sentToday.slots = [];
+    }
+
+    // 檢查每個時段
     this.timeSlots.forEach(slot => {
         if (!slot.enabled) return;
+        if (!slot.weekdays.includes(currentDay)) return;
+        if (sentToday.slots && sentToday.slots.includes(slot.id)) return; // 今天已發送過此通知
 
         const routine = this.routines[slot.routine];
         if (!routine) return;
 
-        // 計算下次觸發時間
-        const now = new Date();
-        const [hours, minutes] = slot.time.split(':');
+        // 檢查是否到了通知時間（提前5分鐘通知）
+        const slotTime = slot.time;
+        const [slotHour, slotMinute] = slotTime.split(':').map(Number);
+        const notificationTime = new Date(now);
+        notificationTime.setHours(slotHour, slotMinute - 5, 0, 0);
 
-        slot.weekdays.forEach(weekday => {
-            const nextDate = new Date();
-            nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        const currentTimeMs = now.getTime();
+        const notificationTimeMs = notificationTime.getTime();
+        const slotTimeDate = new Date(now);
+        slotTimeDate.setHours(slotHour, slotMinute, 0, 0);
 
-            // 如果今天已經過了這個時間，找下一個符合的日期
-            let daysToAdd = (weekday - now.getDay() + 7) % 7;
-            if (daysToAdd === 0 && now.getTime() > nextDate.getTime()) {
-                daysToAdd = 7;
-            }
+        // 如果當前時間在通知時間和時段時間之間，發送通知
+        if (currentTimeMs >= notificationTimeMs && currentTimeMs <= slotTimeDate.getTime()) {
+            // 發送通知
+            new Notification(`⏰ ${slot.name}`, {
+                body: `該執行「${routine.name}」囉！`,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `slot-${slot.id}`,
+                requireInteraction: false,
+                vibrate: [200, 100, 200]
+            });
 
-            nextDate.setDate(nextDate.getDate() + daysToAdd);
-
-            // 註冊 Service Worker 通知（簡化版）
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'SCHEDULE_NOTIFICATION',
-                    time: nextDate.toISOString(),
-                    title: slot.name,
-                    body: routine.name,
-                    routineId: routine.id
-                });
-            }
-        });
+            // 記錄已發送
+            if (!sentToday.slots) sentToday.slots = [];
+            sentToday.slots.push(slot.id);
+            localStorage.setItem('sentNotifications', JSON.stringify(sentToday));
+        }
     });
 };
 
