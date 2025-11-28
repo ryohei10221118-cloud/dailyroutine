@@ -24,11 +24,5 @@
     "VAPID_PUBLIC_KEY": "@vapid_public_key",
     "VAPID_PRIVATE_KEY": "@vapid_private_key",
     "VAPID_SUBJECT": "@vapid_subject"
-  },
-  "crons": [
-    {
-      "path": "/api/send-notifications",
-      "schedule": "* * * * *"
-    }
-  ]
+  }
 }
