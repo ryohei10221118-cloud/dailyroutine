@@ -3,8 +3,8 @@
  */
 
 const PushManager = {
-  // VAPID 公鑰（部署時會被替換）
-  vapidPublicKey: 'YOUR_VAPID_PUBLIC_KEY_HERE',
+  // VAPID 公鑰
+  vapidPublicKey: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnVp8HJC08Hiik5FlgBPiJa9iRt7ivKAe4NHM-58ujsDXRgIxWwWZ5Uhe94Tj-mhkhAvN2VxoGfM3bfaFyrabBQ',
 
   // API 端點
   apiEndpoint: '/api',
