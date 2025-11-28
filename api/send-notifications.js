@@ -15,13 +15,18 @@ webpush.setVapidDetails(
 
 function getCurrentTime() {
   const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
+  // 转换为 UTC+8 时区
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const hours = utc8.getUTCHours().toString().padStart(2, '0');
+  const minutes = utc8.getUTCMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
 function getCurrentWeekday() {
-  return new Date().getDay();
+  const now = new Date();
+  // 转换为 UTC+8 时区
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  return utc8.getUTCDay();
 }
 
 module.exports = async (req, res) => {
