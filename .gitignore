@@ -12,3 +12,9 @@ Thumbs.db
 # 如果使用 npm（未來擴展用）
 node_modules/
 package-lock.json
+
+# 環境變數（包含敏感資訊）
+.env
+.env.local
+.env.*.local
+.vercel

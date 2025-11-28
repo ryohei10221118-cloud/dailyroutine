@@ -1,0 +1,17 @@
+{
+  "name": "skincare-reminder",
+  "version": "1.0.0",
+  "description": "保養提醒助手 - 智能保養流程提醒與管理應用",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "generate-keys": "node generate-vapid-keys.js"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.1",
+    "web-push": "^3.6.6"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0"
+  }
+}

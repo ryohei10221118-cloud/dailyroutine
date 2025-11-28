@@ -61,6 +61,13 @@ const App = {
             history: this.history
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
+
+        // 如果已訂閱推送，更新伺服器上的資料
+        if (typeof PushManager !== 'undefined') {
+            PushManager.updateSubscription().catch(err => {
+                console.log('Update subscription failed:', err);
+            });
+        }
     },
 
     // 初始化預設資料
@@ -1809,32 +1816,41 @@ App.requestNotificationPermission = async function() {
         return;
     }
 
-    if (Notification.permission === 'granted') {
-        alert('通知權限已啟用！');
+    if (Notification.permission === 'granted' && await PushManager.isSubscribed()) {
+        alert('推送通知已啟用！即使關閉 App 也能收到提醒 🎉');
         return;
     }
 
-    const permission = await Notification.requestPermission();
-
-    if (permission === 'granted') {
-        this.notificationPermission = true;
+    try {
         const btn = document.getElementById('notificationBtn');
+        btn.textContent = '⏳ 啟用中...';
+        btn.disabled = true;
+
+        // 訂閱推送服務
+        await PushManager.subscribe();
+
+        this.notificationPermission = true;
         const testBtn = document.getElementById('testNotificationBtn');
-        btn.textContent = '🔔 通知已啟用';
+        btn.textContent = '🔔 推送已啟用';
         btn.classList.add('enabled');
+        btn.disabled = false;
 
         // 顯示測試通知按鈕
         if (testBtn) testBtn.style.display = 'block';
 
-        // 顯示測試通知
+        // 顯示成功通知
         new Notification('保養提醒助手', {
-            body: '通知已成功啟用！我會準時提醒您保養 💚',
+            body: '推送通知已成功啟用！\n即使關閉 App 也能收到提醒 💜',
             icon: '/icon-192.png'
         });
 
         this.scheduleNotifications();
-    } else {
-        alert('請在設定中允許通知權限，才能收到提醒喔！');
+    } catch (error) {
+        console.error('Push subscription error:', error);
+        const btn = document.getElementById('notificationBtn');
+        btn.textContent = '🔔 啟用通知';
+        btn.disabled = false;
+        alert('啟用推送通知失敗：' + error.message + '\n\n您仍可使用本地通知，但需要保持 App 開啟。');
     }
 };
 
