@@ -3,7 +3,7 @@
  * GET /api/send-notifications
  */
 
-const { kv } = require('@vercel/kv');
+const { kv } = require('./redis');
 const webpush = require('web-push');
 
 // 設定 VAPID

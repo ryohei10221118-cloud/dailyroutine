@@ -15,17 +15,17 @@ module.exports = async (req, res) => {
       }
     };
 
-    // 測試 2: KV 連線
+    // 測試 2: Redis 連線
     try {
-      const { kv } = require('@vercel/kv');
+      const { kv } = require('./redis');
       await kv.set('test-key', 'test-value');
       const value = await kv.get('test-key');
-      tests.kv = {
+      tests.redis = {
         connected: true,
         testResult: value === 'test-value'
       };
     } catch (error) {
-      tests.kv = {
+      tests.redis = {
         connected: false,
         error: error.message
       };
