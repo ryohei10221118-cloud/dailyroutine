@@ -24,6 +24,24 @@ function getCurrentWeekday() {
   return new Date().getDay();
 }
 
+// 計算提前通知的時間（根據提前分鐘數）
+function getNotificationTime(scheduledTime, advanceMinutes = 0) {
+  if (advanceMinutes === 0) return scheduledTime;
+
+  const [hours, minutes] = scheduledTime.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  const notifyMinutes = totalMinutes - advanceMinutes;
+
+  // 處理跨日情況（如果提前時間導致時間為負數）
+  if (notifyMinutes < 0) {
+    return null; // 不在當天發送
+  }
+
+  const notifyHours = Math.floor(notifyMinutes / 60);
+  const notifyMins = notifyMinutes % 60;
+  return `${notifyHours.toString().padStart(2, '0')}:${notifyMins.toString().padStart(2, '0')}`;
+}
+
 module.exports = async (req, res) => {
   try {
     const currentTime = getCurrentTime();
@@ -84,15 +102,22 @@ module.exports = async (req, res) => {
 
         // 檢查純提醒
         for (const reminder of reminders) {
+          // 計算實際通知時間（考慮提前分鐘數）
+          const notifyTime = getNotificationTime(reminder.time, reminder.advanceMinutes || 0);
+
           if (reminder.enabled &&
-              reminder.time === currentTime &&
+              notifyTime === currentTime &&
               reminder.weekdays.includes(currentWeekday)) {
+
+            const advanceText = reminder.advanceMinutes > 0
+              ? ` (原時間: ${reminder.time})`
+              : '';
 
             await webpush.sendNotification(
               subscription,
               JSON.stringify({
                 title: reminder.title || '⏰ 提醒',
-                body: reminder.content || '提醒時間到了！',
+                body: `${reminder.content || '提醒時間到了！'}${advanceText}`,
                 icon: '/icon-192.png',
                 badge: '/icon-192.png',
                 tag: `reminder-${reminder.id}`,
@@ -105,7 +130,7 @@ module.exports = async (req, res) => {
             );
 
             sentCount++;
-            console.log(`✅ Sent notification for reminder: ${reminder.title}`);
+            console.log(`✅ Sent notification for reminder: ${reminder.title} at ${currentTime} (scheduled: ${reminder.time}, advance: ${reminder.advanceMinutes || 0}min)`);
           }
         }
 

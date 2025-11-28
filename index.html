@@ -351,6 +351,11 @@
                     <input type="time" id="reminderTime">
                 </div>
                 <div class="form-group">
+                    <label>提前通知（分鐘）</label>
+                    <input type="number" id="reminderAdvanceMinutes" min="0" max="60" value="0" placeholder="0 = 準時通知">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 4px;">設定為 0 則在設定時間準時通知，設定為 5 則提前 5 分鐘通知</small>
+                </div>
+                <div class="form-group">
                     <label>重複日期</label>
                     <div class="weekday-selector">
                         <label><input type="checkbox" value="1" class="reminder-weekday"> 週一</label>
