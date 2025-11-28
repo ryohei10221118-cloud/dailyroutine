@@ -494,11 +494,76 @@
 
     <script src="app.js"></script>
     <script>
-        // 註冊 Service Worker
+        // 註冊 Service Worker 並處理更新
         if ('serviceWorker' in navigator) {
+            let refreshing = false;
+
+            // 監聽控制器變更（表示新的 Service Worker 已激活）
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+
             navigator.serviceWorker.register('service-worker.js')
-                .then(reg => console.log('Service Worker 已註冊', reg))
+                .then(reg => {
+                    console.log('Service Worker 已註冊', reg);
+
+                    // 定期檢查更新（每小時）
+                    setInterval(() => {
+                        reg.update();
+                    }, 3600000);
+
+                    // 監聽更新
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // 有新版本可用
+                                showUpdateNotification();
+                            }
+                        });
+                    });
+                })
                 .catch(err => console.log('Service Worker 註冊失敗', err));
+        }
+
+        // 顯示更新通知
+        function showUpdateNotification() {
+            const banner = document.createElement('div');
+            banner.style.cssText = `
+                position: fixed;
+                top: 60px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+                animation: slideDown 0.3s ease;
+            `;
+            banner.innerHTML = `
+                <span>🎉 有新版本可用！</span>
+                <button onclick="location.reload()" style="
+                    background: white;
+                    color: #667eea;
+                    border: none;
+                    padding: 6px 16px;
+                    border-radius: 15px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    font-size: 13px;
+                ">立即更新</button>
+            `;
+            document.body.appendChild(banner);
         }
     </script>
 </body>
