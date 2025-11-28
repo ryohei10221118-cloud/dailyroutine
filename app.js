@@ -505,6 +505,9 @@ App.setupEventListeners = function() {
     // 通知權限
     document.getElementById('notificationBtn')?.addEventListener('click', () => this.requestNotificationPermission());
 
+    // 測試通知
+    document.getElementById('testNotificationBtn')?.addEventListener('click', () => this.sendTestNotification());
+
     // 完成流程
     document.getElementById('completeRoutineBtn')?.addEventListener('click', () => this.completeRoutine());
 
@@ -531,8 +534,23 @@ App.setupEventListeners = function() {
     // 批量選擇（時段設定）
     document.getElementById('toggleSlotSelectModeBtn')?.addEventListener('click', () => this.toggleSlotSelectMode());
     document.getElementById('selectAllSlotsBtn')?.addEventListener('click', () => this.selectAllSlots());
+    document.getElementById('batchEditSlotsBtn')?.addEventListener('click', () => this.showBatchEditSlotModal());
     document.getElementById('deleteSelectedSlotsBtn')?.addEventListener('click', () => this.deleteSelectedSlots());
     document.getElementById('cancelSlotSelectBtn')?.addEventListener('click', () => this.cancelSlotSelectMode());
+
+    // 批量修改時段
+    document.getElementById('batchEditRoutineCheck')?.addEventListener('change', (e) => {
+        document.getElementById('batchEditRoutine').disabled = !e.target.checked;
+    });
+    document.getElementById('batchEditWeekdaysCheck')?.addEventListener('change', (e) => {
+        document.querySelectorAll('.batch-weekday').forEach(input => {
+            input.disabled = !e.target.checked;
+        });
+    });
+    document.getElementById('saveBatchEditBtn')?.addEventListener('click', () => this.applyBatchEditSlots());
+    document.getElementById('cancelBatchEditBtn')?.addEventListener('click', () => {
+        document.getElementById('batchEditSlotModal').classList.remove('active');
+    });
 
     // 批量選擇（流程管理）
     document.getElementById('toggleRoutineSelectModeBtn')?.addEventListener('click', () => this.toggleRoutineSelectMode());
@@ -1090,6 +1108,79 @@ App.cancelSlotSelectMode = function() {
     document.getElementById('slotBatchActions').style.display = 'none';
 
     this.updateScheduleView();
+};
+
+App.showBatchEditSlotModal = function() {
+    if (this.selectedSlots.size === 0) {
+        alert('請先選擇要修改的時段！');
+        return;
+    }
+
+    const modal = document.getElementById('batchEditSlotModal');
+    document.getElementById('batchEditCount').textContent = this.selectedSlots.size;
+
+    // 填充流程選項
+    const routineSelect = document.getElementById('batchEditRoutine');
+    routineSelect.innerHTML = '<option value="">選擇流程...</option>';
+    Object.values(this.routines).forEach(routine => {
+        routineSelect.innerHTML += `<option value="${routine.id}">${routine.name}</option>`;
+    });
+
+    // 重置表單
+    document.getElementById('batchEditRoutineCheck').checked = false;
+    document.getElementById('batchEditRoutine').disabled = true;
+    document.getElementById('batchEditRoutine').value = '';
+
+    document.getElementById('batchEditWeekdaysCheck').checked = false;
+    document.querySelectorAll('.batch-weekday').forEach(input => {
+        input.disabled = true;
+        input.checked = false;
+    });
+
+    modal.classList.add('active');
+};
+
+App.applyBatchEditSlots = function() {
+    const editRoutine = document.getElementById('batchEditRoutineCheck').checked;
+    const editWeekdays = document.getElementById('batchEditWeekdaysCheck').checked;
+
+    if (!editRoutine && !editWeekdays) {
+        alert('請至少選擇一項要修改的內容！');
+        return;
+    }
+
+    let count = 0;
+    this.selectedSlots.forEach(slotId => {
+        const slot = this.timeSlots.find(s => s.id === slotId);
+        if (slot) {
+            if (editRoutine) {
+                const newRoutine = document.getElementById('batchEditRoutine').value;
+                if (newRoutine) {
+                    slot.routine = newRoutine;
+                }
+            }
+
+            if (editWeekdays) {
+                const weekdays = [];
+                document.querySelectorAll('.batch-weekday:checked').forEach(input => {
+                    weekdays.push(parseInt(input.value));
+                });
+                if (weekdays.length > 0) {
+                    slot.weekdays = weekdays;
+                }
+            }
+
+            count++;
+        }
+    });
+
+    this.saveData();
+    this.updateScheduleView();
+    this.updateTodayView();
+    this.updateWeeklyScheduleView();
+
+    document.getElementById('batchEditSlotModal').classList.remove('active');
+    alert(`✅ 已成功修改 ${count} 個時段！`);
 };
 
 App.updateSlotRoutine = function(slotId, routineId) {
@@ -1676,9 +1767,11 @@ App.checkNotificationPermission = function() {
     if ('Notification' in window) {
         this.notificationPermission = Notification.permission === 'granted';
         const btn = document.getElementById('notificationBtn');
+        const testBtn = document.getElementById('testNotificationBtn');
         if (this.notificationPermission) {
             btn.textContent = '🔔 通知已啟用';
             btn.classList.add('enabled');
+            if (testBtn) testBtn.style.display = 'block';
         }
     }
 };
@@ -1699,8 +1792,12 @@ App.requestNotificationPermission = async function() {
     if (permission === 'granted') {
         this.notificationPermission = true;
         const btn = document.getElementById('notificationBtn');
+        const testBtn = document.getElementById('testNotificationBtn');
         btn.textContent = '🔔 通知已啟用';
         btn.classList.add('enabled');
+
+        // 顯示測試通知按鈕
+        if (testBtn) testBtn.style.display = 'block';
 
         // 顯示測試通知
         new Notification('保養提醒助手', {
@@ -1712,6 +1809,28 @@ App.requestNotificationPermission = async function() {
     } else {
         alert('請在設定中允許通知權限，才能收到提醒喔！');
     }
+};
+
+App.sendTestNotification = function() {
+    if (!this.notificationPermission) {
+        alert('請先啟用通知權限！');
+        return;
+    }
+
+    // 發送測試通知
+    const testRoutine = Object.values(this.routines)[0];
+    const routineName = testRoutine ? testRoutine.name : '早晨保養流程';
+
+    new Notification('⏰ 測試通知', {
+        body: `這是一則測試通知！\n該執行「${routineName}」囉！`,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200],
+        tag: 'test-notification',
+        requireInteraction: false
+    });
+
+    alert('✅ 測試通知已發送！\n如果您看到通知，表示通知功能正常運作。');
 };
 
 App.scheduleNotifications = function() {
