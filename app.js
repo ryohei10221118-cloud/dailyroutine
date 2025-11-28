@@ -490,6 +490,11 @@ App.setupEventListeners = function() {
         document.getElementById('timeSlotModal').classList.remove('active');
     });
 
+    // 星期篩選器
+    document.getElementById('weekdayFilter')?.addEventListener('change', () => {
+        this.updateScheduleView();
+    });
+
     // 產品管理
     document.getElementById('addProductBtn')?.addEventListener('click', () => this.showProductModal());
     document.getElementById('saveProductBtn')?.addEventListener('click', () => this.saveProduct());
@@ -782,8 +787,31 @@ App.updateScheduleView = function() {
     const list = document.getElementById('timeSlotsList');
     list.innerHTML = '';
 
-    // 按時間排序
-    const sortedSlots = [...this.timeSlots].sort((a, b) => a.time.localeCompare(b.time));
+    // 獲取當前選擇的星期篩選
+    const weekdayFilter = document.getElementById('weekdayFilter');
+    const selectedWeekday = weekdayFilter ? weekdayFilter.value : 'all';
+
+    // 按時間排序並篩選
+    let filteredSlots = [...this.timeSlots];
+
+    // 根據星期篩選
+    if (selectedWeekday !== 'all') {
+        const dayNum = parseInt(selectedWeekday);
+        filteredSlots = filteredSlots.filter(slot => slot.weekdays.includes(dayNum));
+    }
+
+    const sortedSlots = filteredSlots.sort((a, b) => a.time.localeCompare(b.time));
+
+    // 顯示篩選結果提示
+    if (selectedWeekday !== 'all' && sortedSlots.length === 0) {
+        const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.cssText = 'text-align: center; padding: 40px 20px; color: var(--text-secondary);';
+        emptyMsg.innerHTML = `<p>📅 週${weekdayNames[parseInt(selectedWeekday)]}沒有設定任何時段</p>`;
+        list.appendChild(emptyMsg);
+        this.updateWeeklyScheduleView();
+        return;
+    }
 
     sortedSlots.forEach(slot => {
         const routine = this.routines[slot.routine];
