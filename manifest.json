@@ -4,8 +4,8 @@
   "description": "智能保養流程提醒與管理應用",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4CAF50",
+  "background_color": "#faf9fb",
+  "theme_color": "#9b87b5",
   "orientation": "portrait",
   "icons": [
     {

@@ -1,5 +1,5 @@
 // 使用時間戳作為版本號，每次更新自動改變
-const CACHE_VERSION = '2025-11-28-003'; // 格式：YYYY-MM-DD-NNN
+const CACHE_VERSION = '2025-11-28-004'; // 格式：YYYY-MM-DD-NNN
 const CACHE_NAME = `skincare-reminder-${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
