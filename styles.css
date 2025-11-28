@@ -6,18 +6,23 @@
 }
 
 :root {
-    --primary-color: #4CAF50;
-    --secondary-color: #2196F3;
-    --danger-color: #f44336;
-    --warning-color: #ff9800;
-    --success-color: #8BC34A;
-    --text-primary: #212121;
-    --text-secondary: #757575;
-    --bg-primary: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --border-color: #e0e0e0;
-    --shadow: 0 2px 4px rgba(0,0,0,0.1);
-    --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
+    --primary-color: #9b87b5;
+    --primary-light: #b8a5cc;
+    --primary-dark: #7d6a94;
+    --secondary-color: #8b9dc3;
+    --accent-pink: #c9a5bb;
+    --accent-blue: #a5b8cc;
+    --danger-color: #c97d8a;
+    --warning-color: #d4a574;
+    --success-color: #9bb5a0;
+    --text-primary: #4a4554;
+    --text-secondary: #8a8796;
+    --bg-primary: #faf9fb;
+    --bg-secondary: #f0eef3;
+    --bg-card: #ffffff;
+    --border-color: #d8d5de;
+    --shadow: 0 2px 4px rgba(155, 135, 181, 0.12);
+    --shadow-lg: 0 4px 12px rgba(155, 135, 181, 0.2);
 }
 
 body {
@@ -39,7 +44,7 @@ body {
 
 /* 頂部導航 */
 .app-header {
-    background: linear-gradient(135deg, var(--primary-color), #66BB6A);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
     padding: 20px;
     text-align: center;
@@ -127,7 +132,7 @@ h3 {
 
 /* 今日流程 */
 .today-overview {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-pink) 100%);
     color: white;
     padding: 20px;
     border-radius: 12px;
@@ -204,13 +209,13 @@ h3 {
 }
 
 .timeline-status.pending {
-    background: #FFF3E0;
-    color: #F57C00;
+    background: #f5eef7;
+    color: var(--warning-color);
 }
 
 .timeline-status.completed {
-    background: #E8F5E9;
-    color: #2E7D32;
+    background: #eef5f0;
+    color: var(--success-color);
 }
 
 /* 當前流程詳情 */
@@ -274,7 +279,7 @@ h3 {
 }
 
 .step-item.completed {
-    background: #E8F5E9;
+    background: #f2eef7;
 }
 
 .step-checkbox {
@@ -348,7 +353,7 @@ h3 {
 
 .btn-complete:hover,
 .btn-primary:hover {
-    background: #45a049;
+    background: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
@@ -359,7 +364,7 @@ h3 {
 }
 
 .btn-success:hover {
-    background: #7CB342;
+    background: #89a794;
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
@@ -370,7 +375,7 @@ h3 {
 }
 
 .btn-danger:hover {
-    background: #d32f2f;
+    background: #b5707c;
 }
 
 .btn-add {
@@ -380,7 +385,7 @@ h3 {
 }
 
 .btn-add:hover {
-    background: #1976D2;
+    background: #7a8db5;
 }
 
 .btn-add-small {
@@ -396,7 +401,7 @@ h3 {
 }
 
 .btn-add-small:hover {
-    background: #1976D2;
+    background: #7a8db5;
     transform: scale(1.05);
 }
 
@@ -569,7 +574,7 @@ h3 {
 }
 
 .btn-icon.delete {
-    background: #FFEBEE;
+    background: #f7edef;
     color: var(--danger-color);
 }
 
@@ -713,20 +718,20 @@ h3 {
 .routine-warnings {
     margin-top: 15px;
     padding: 12px;
-    background: #FFF3E0;
+    background: #faf5f1;
     border-radius: 8px;
-    border-left: 4px solid #F57C00;
+    border-left: 4px solid var(--warning-color);
 }
 
 .warning-title {
     font-weight: 600;
-    color: #F57C00;
+    color: var(--warning-color);
     margin-bottom: 8px;
 }
 
 .warning-item {
     font-size: 13px;
-    color: #E65100;
+    color: #b8936a;
     margin: 4px 0;
 }
 
