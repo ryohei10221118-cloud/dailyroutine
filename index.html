@@ -238,6 +238,7 @@
             <button class="btn-smart-suggest" id="smartSuggestBtn">✨ AI 智能建議</button>
             <button class="btn-notification" id="notificationBtn">🔔 啟用通知</button>
             <button class="btn-test-notification" id="testNotificationBtn" style="display: none;">🔔 測試通知</button>
+            <button class="btn-check-update" id="checkUpdateBtn">🔄 檢查更新</button>
         </footer>
     </div>
 
@@ -503,6 +504,7 @@
         // 註冊 Service Worker 並處理更新
         if ('serviceWorker' in navigator) {
             let refreshing = false;
+            let registration = null;
 
             // 監聽控制器變更（表示新的 Service Worker 已激活）
             navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -514,12 +516,17 @@
 
             navigator.serviceWorker.register('service-worker.js')
                 .then(reg => {
+                    registration = reg;
                     console.log('Service Worker 已註冊', reg);
 
-                    // 定期檢查更新（每小時）
+                    // 頁面載入時立即檢查更新
+                    reg.update();
+
+                    // 定期檢查更新（每 10 分鐘）
                     setInterval(() => {
+                        console.log('🔄 定期檢查更新...');
                         reg.update();
-                    }, 3600000);
+                    }, 600000); // 改為 10 分鐘
 
                     // 監聽更新
                     reg.addEventListener('updatefound', () => {
@@ -534,11 +541,52 @@
                     });
                 })
                 .catch(err => console.log('Service Worker 註冊失敗', err));
+
+            // 手動檢查更新按鈕
+            document.addEventListener('DOMContentLoaded', () => {
+                const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+                if (checkUpdateBtn) {
+                    checkUpdateBtn.addEventListener('click', async () => {
+                        if (!registration) {
+                            alert('Service Worker 尚未註冊');
+                            return;
+                        }
+
+                        checkUpdateBtn.classList.add('checking');
+                        checkUpdateBtn.textContent = '🔄 檢查中...';
+
+                        try {
+                            await registration.update();
+
+                            // 等待一下看是否有更新
+                            setTimeout(() => {
+                                checkUpdateBtn.classList.remove('checking');
+                                checkUpdateBtn.textContent = '🔄 檢查更新';
+
+                                // 如果沒有觸發 updatefound，表示已是最新版本
+                                if (!registration.installing && !registration.waiting) {
+                                    showNoUpdateNotification();
+                                }
+                            }, 2000);
+                        } catch (err) {
+                            console.error('檢查更新失敗:', err);
+                            checkUpdateBtn.classList.remove('checking');
+                            checkUpdateBtn.textContent = '🔄 檢查更新';
+                            alert('檢查更新失敗，請稍後再試');
+                        }
+                    });
+                }
+            });
         }
 
         // 顯示更新通知
         function showUpdateNotification() {
+            // 移除舊的通知（如果有）
+            const oldBanner = document.querySelector('.update-banner');
+            if (oldBanner) oldBanner.remove();
+
             const banner = document.createElement('div');
+            banner.className = 'update-banner';
             banner.style.cssText = `
                 position: fixed;
                 top: 60px;
@@ -570,6 +618,41 @@
                 ">立即更新</button>
             `;
             document.body.appendChild(banner);
+        }
+
+        // 顯示無更新通知
+        function showNoUpdateNotification() {
+            // 移除舊的通知（如果有）
+            const oldBanner = document.querySelector('.no-update-banner');
+            if (oldBanner) oldBanner.remove();
+
+            const banner = document.createElement('div');
+            banner.className = 'no-update-banner';
+            banner.style.cssText = `
+                position: fixed;
+                top: 60px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #9bb5a0 0%, #89a794 100%);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+                animation: slideDown 0.3s ease;
+            `;
+            banner.innerHTML = `<span>✅ 已是最新版本！</span>`;
+            document.body.appendChild(banner);
+
+            // 3 秒後自動移除
+            setTimeout(() => {
+                banner.style.animation = 'slideUp 0.3s ease';
+                setTimeout(() => banner.remove(), 300);
+            }, 3000);
         }
     </script>
 </body>
