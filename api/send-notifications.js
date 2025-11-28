@@ -1,8 +1,6 @@
 /**
  * API 端點：檢查並發送推送通知
  * GET /api/send-notifications
- *
- * 這個端點會被 Vercel Cron 每分鐘呼叫一次
  */
 
 const { kv } = require('@vercel/kv');
@@ -27,12 +25,6 @@ function getCurrentWeekday() {
 }
 
 module.exports = async (req, res) => {
-  // 驗證請求（可選：加入 secret token）
-  const authHeader = req.headers.authorization;
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
     const currentTime = getCurrentTime();
     const currentWeekday = getCurrentWeekday();
@@ -44,7 +36,11 @@ module.exports = async (req, res) => {
 
     if (!subscriptionIds || subscriptionIds.length === 0) {
       console.log('ℹ️ No subscriptions found');
-      return res.status(200).json({ message: 'No subscriptions', sent: 0 });
+      return res.status(200).json({
+        success: true,
+        message: 'No subscriptions',
+        sent: 0
+      });
     }
 
     let sentCount = 0;
