@@ -1307,6 +1307,43 @@ h3 {
     display: none;
 }
 
+.reminder-type-selector {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.reminder-type-selector label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: normal;
+    user-select: none;
+    flex: 1;
+}
+
+.reminder-type-selector label:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+}
+
+.reminder-type-selector label:has(input:checked) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: 500;
+}
+
+.reminder-type-selector input {
+    display: none;
+}
+
 /* 響應式設計 */
 @media (max-width: 480px) {
     .main-content {

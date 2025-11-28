@@ -520,6 +520,11 @@ App.setupEventListeners = function() {
         document.getElementById('reminderModal').classList.remove('active');
     });
 
+    // 提醒類型切換
+    document.querySelectorAll('input[name="reminderType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => this.toggleReminderType(e.target.value));
+    });
+
     // 通知權限
     document.getElementById('notificationBtn')?.addEventListener('click', () => this.requestNotificationPermission());
 
@@ -2687,33 +2692,94 @@ App.updateRemindersView = function() {
         return;
     }
 
+    // 分類並排序
+    const recurringReminders = this.reminders.filter(r => !r.type || r.type === 'recurring');
+    const onceReminders = this.reminders.filter(r => r.type === 'once');
+
     // 按時間排序
-    const sortedReminders = [...this.reminders].sort((a, b) => a.time.localeCompare(b.time));
+    const sortedRecurring = [...recurringReminders].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    const sortedOnce = [...onceReminders].sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
 
-    sortedReminders.forEach(reminder => {
-        const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
-        const daysText = reminder.weekdays.map(d => weekdayNames[d]).join('、');
+    const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
-        const card = document.createElement('div');
-        card.className = 'reminder-card';
-        card.innerHTML = `
-            <div class="reminder-info">
-                <div class="reminder-title">${reminder.title}</div>
-                <div class="reminder-content">${reminder.content || ''}</div>
-                <div class="reminder-time">⏰ ${reminder.time}</div>
-                <div class="reminder-days">週${daysText}</div>
-            </div>
-            <div class="reminder-actions">
-                <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
-                <button class="btn-icon delete" data-id="${reminder.id}">🗑️</button>
-            </div>
-        `;
+    // 顯示一次性提醒
+    if (sortedOnce.length > 0) {
+        const section = document.createElement('div');
+        section.innerHTML = '<h4 style="margin: 10px 0; color: var(--text-secondary); font-size: 14px;">📅 一次性提醒</h4>';
+        list.appendChild(section);
 
-        card.querySelector('.edit').addEventListener('click', () => this.editReminder(reminder.id));
-        card.querySelector('.delete').addEventListener('click', () => this.deleteReminder(reminder.id));
+        sortedOnce.forEach(reminder => {
+            const datetime = new Date(reminder.datetime);
+            const dateStr = datetime.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', weekday: 'short' });
+            const timeStr = datetime.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-        list.appendChild(card);
-    });
+            const card = document.createElement('div');
+            card.className = 'reminder-card';
+            card.innerHTML = `
+                <div class="reminder-info">
+                    <div class="reminder-title">${reminder.title}</div>
+                    <div class="reminder-content">${reminder.content || ''}</div>
+                    <div class="reminder-time">📅 ${dateStr} ${timeStr}</div>
+                </div>
+                <div class="reminder-actions">
+                    <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
+                    <button class="btn-icon delete" data-id="${reminder.id}">🗑️</button>
+                </div>
+            `;
+
+            card.querySelector('.edit').addEventListener('click', () => this.editReminder(reminder.id));
+            card.querySelector('.delete').addEventListener('click', () => this.deleteReminder(reminder.id));
+
+            list.appendChild(card);
+        });
+    }
+
+    // 顯示重複提醒
+    if (sortedRecurring.length > 0) {
+        const section = document.createElement('div');
+        section.innerHTML = '<h4 style="margin: 20px 0 10px 0; color: var(--text-secondary); font-size: 14px;">🔄 重複提醒</h4>';
+        list.appendChild(section);
+
+        sortedRecurring.forEach(reminder => {
+            const daysText = (reminder.weekdays || []).map(d => weekdayNames[d]).join('、');
+
+            const card = document.createElement('div');
+            card.className = 'reminder-card';
+            card.innerHTML = `
+                <div class="reminder-info">
+                    <div class="reminder-title">${reminder.title}</div>
+                    <div class="reminder-content">${reminder.content || ''}</div>
+                    <div class="reminder-time">⏰ ${reminder.time || ''}</div>
+                    <div class="reminder-days">週${daysText}</div>
+                </div>
+                <div class="reminder-actions">
+                    <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
+                    <button class="btn-icon delete" data-id="${reminder.id}">🗑️</button>
+                </div>
+            `;
+
+            card.querySelector('.edit').addEventListener('click', () => this.editReminder(reminder.id));
+            card.querySelector('.delete').addEventListener('click', () => this.deleteReminder(reminder.id));
+
+            list.appendChild(card);
+        });
+    }
+};
+
+App.toggleReminderType = function(type) {
+    const recurringTimeGroup = document.getElementById('recurringTimeGroup');
+    const recurringWeekdaysGroup = document.getElementById('recurringWeekdaysGroup');
+    const onceTimeGroup = document.getElementById('onceTimeGroup');
+
+    if (type === 'recurring') {
+        recurringTimeGroup.style.display = 'block';
+        recurringWeekdaysGroup.style.display = 'block';
+        onceTimeGroup.style.display = 'none';
+    } else {
+        recurringTimeGroup.style.display = 'none';
+        recurringWeekdaysGroup.style.display = 'none';
+        onceTimeGroup.style.display = 'block';
+    }
 };
 
 App.showReminderModal = function(reminderId = null) {
@@ -2725,20 +2791,31 @@ App.showReminderModal = function(reminderId = null) {
         if (reminder) {
             document.getElementById('reminderTitle').value = reminder.title;
             document.getElementById('reminderContent').value = reminder.content || '';
-            document.getElementById('reminderTime').value = reminder.time;
 
-            // 設定星期選擇
-            document.querySelectorAll('.reminder-weekday').forEach(input => {
-                input.checked = reminder.weekdays.includes(parseInt(input.value));
-            });
+            // 根據提醒類型設定
+            if (reminder.type === 'once') {
+                document.querySelector('input[name="reminderType"][value="once"]').checked = true;
+                document.getElementById('reminderDatetime').value = reminder.datetime;
+                this.toggleReminderType('once');
+            } else {
+                document.querySelector('input[name="reminderType"][value="recurring"]').checked = true;
+                document.getElementById('reminderTime').value = reminder.time;
+                document.querySelectorAll('.reminder-weekday').forEach(input => {
+                    input.checked = reminder.weekdays.includes(parseInt(input.value));
+                });
+                this.toggleReminderType('recurring');
+            }
         }
     } else {
         document.getElementById('reminderTitle').value = '';
         document.getElementById('reminderContent').value = '';
         document.getElementById('reminderTime').value = '';
+        document.getElementById('reminderDatetime').value = '';
+        document.querySelector('input[name="reminderType"][value="recurring"]').checked = true;
         document.querySelectorAll('.reminder-weekday').forEach(input => {
             input.checked = false;
         });
+        this.toggleReminderType('recurring');
     }
 
     modal.classList.add('active');
@@ -2751,47 +2828,68 @@ App.editReminder = function(id) {
 App.saveReminder = function() {
     const title = document.getElementById('reminderTitle').value.trim();
     const content = document.getElementById('reminderContent').value.trim();
-    const time = document.getElementById('reminderTime').value;
+    const type = document.querySelector('input[name="reminderType"]:checked').value;
 
-    if (!title || !time) {
-        alert('請填寫提醒標題和時間！');
+    if (!title) {
+        alert('請填寫提醒標題！');
         return;
     }
 
-    const weekdays = [];
-    document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
-        weekdays.push(parseInt(input.value));
-    });
+    let reminderData = {
+        title,
+        content,
+        type,
+        enabled: true
+    };
 
-    if (weekdays.length === 0) {
-        alert('請至少選擇一個重複日期！');
-        return;
+    if (type === 'recurring') {
+        const time = document.getElementById('reminderTime').value;
+        if (!time) {
+            alert('請填寫提醒時間！');
+            return;
+        }
+
+        const weekdays = [];
+        document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
+            weekdays.push(parseInt(input.value));
+        });
+
+        if (weekdays.length === 0) {
+            alert('請至少選擇一個重複日期！');
+            return;
+        }
+
+        reminderData.time = time;
+        reminderData.weekdays = weekdays;
+    } else {
+        const datetime = document.getElementById('reminderDatetime').value;
+        if (!datetime) {
+            alert('請填寫提醒日期和時間！');
+            return;
+        }
+
+        reminderData.datetime = datetime;
     }
 
     if (this.editingReminderId) {
         // 編輯現有提醒
         const reminder = this.reminders.find(r => r.id === this.editingReminderId);
         if (reminder) {
-            reminder.title = title;
-            reminder.content = content;
-            reminder.time = time;
-            reminder.weekdays = weekdays;
+            Object.assign(reminder, reminderData);
         }
     } else {
         // 新增提醒
-        const newReminder = {
-            id: 'reminder-' + Date.now(),
-            title,
-            content,
-            time,
-            weekdays,
-            enabled: true
-        };
-        this.reminders.push(newReminder);
+        reminderData.id = 'reminder-' + Date.now();
+        this.reminders.push(reminderData);
     }
 
     this.saveData();
     this.updateRemindersView();
+
+    // 更新推送訂閱
+    if (typeof PushManager !== 'undefined' && PushManager.updateSubscription) {
+        PushManager.updateSubscription();
+    }
 
     document.getElementById('reminderModal').classList.remove('active');
     this.editingReminderId = null;

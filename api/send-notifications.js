@@ -29,12 +29,26 @@ function getCurrentWeekday() {
   return utc8.getUTCDay();
 }
 
+function getCurrentDatetime() {
+  const now = new Date();
+  // 转换为 UTC+8 时区
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  // 返回 ISO 格式但去掉秒和毫秒，只保留到分钟
+  const year = utc8.getUTCFullYear();
+  const month = (utc8.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = utc8.getUTCDate().toString().padStart(2, '0');
+  const hours = utc8.getUTCHours().toString().padStart(2, '0');
+  const minutes = utc8.getUTCMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 module.exports = async (req, res) => {
   try {
     const currentTime = getCurrentTime();
     const currentWeekday = getCurrentWeekday();
+    const currentDatetime = getCurrentDatetime();
 
-    console.log(`⏰ Checking notifications at ${currentTime}, weekday ${currentWeekday}`);
+    console.log(`⏰ Checking notifications at ${currentTime}, weekday ${currentWeekday}, datetime ${currentDatetime}`);
 
     // 取得所有訂閱
     const subscriptionIds = await kv.smembers('subscriptions');
@@ -88,11 +102,36 @@ module.exports = async (req, res) => {
         }
 
         // 檢查純提醒
-        for (const reminder of reminders) {
-          if (reminder.enabled &&
-              reminder.time === currentTime &&
-              reminder.weekdays.includes(currentWeekday)) {
+        let needsUpdate = false;
+        const updatedReminders = [];
 
+        for (const reminder of reminders) {
+          let shouldSend = false;
+
+          // 檢查重複提醒
+          if ((!reminder.type || reminder.type === 'recurring') &&
+              reminder.enabled &&
+              reminder.time === currentTime &&
+              reminder.weekdays &&
+              reminder.weekdays.includes(currentWeekday)) {
+            shouldSend = true;
+          }
+
+          // 檢查一次性提醒
+          if (reminder.type === 'once' &&
+              reminder.enabled &&
+              reminder.datetime === currentDatetime) {
+            shouldSend = true;
+            needsUpdate = true; // 一次性提醒發送後需要移除
+          } else if (reminder.type === 'once') {
+            // 保留未到期的一次性提醒
+            updatedReminders.push(reminder);
+          } else {
+            // 保留所有重複提醒
+            updatedReminders.push(reminder);
+          }
+
+          if (shouldSend) {
             await webpush.sendNotification(
               subscription,
               JSON.stringify({
@@ -110,8 +149,15 @@ module.exports = async (req, res) => {
             );
 
             sentCount++;
-            console.log(`✅ Sent notification for reminder: ${reminder.title}`);
+            console.log(`✅ Sent notification for reminder: ${reminder.title} (${reminder.type || 'recurring'})`);
           }
+        }
+
+        // 如果有一次性提醒被發送，更新訂閱數據
+        if (needsUpdate) {
+          data.reminders = updatedReminders;
+          await kv.set(`subscription:${subscriptionId}`, JSON.stringify(data));
+          console.log(`📝 Updated subscription ${subscriptionId} - removed sent once-time reminders`);
         }
 
         results.push({ subscriptionId, status: 'success' });
