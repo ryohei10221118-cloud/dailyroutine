@@ -1,9 +1,9 @@
 /**
  * API 端點：處理推送訂閱
  * POST /api/subscribe
+ *
+ * 暫時版本：不使用 KV 資料庫
  */
-
-const { kv } = require('@vercel/kv');
 
 module.exports = async (req, res) => {
   // 設定 CORS
@@ -26,29 +26,17 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid subscription' });
     }
 
-    // 使用 endpoint 作為唯一 ID
-    const subscriptionId = Buffer.from(subscription.endpoint).toString('base64');
-
-    // 儲存訂閱資料
-    const data = {
-      subscription,
-      timeSlots: timeSlots || [],
-      reminders: reminders || [],
-      updatedAt: new Date().toISOString()
-    };
-
-    // 儲存到 Vercel KV
-    await kv.set(`subscription:${subscriptionId}`, JSON.stringify(data));
-
-    // 加入訂閱列表
-    await kv.sadd('subscriptions', subscriptionId);
-
-    console.log('✅ Subscription saved:', subscriptionId);
+    // 暫時只記錄，不儲存（等待資料庫設定）
+    console.log('📥 Subscription received (not saved yet):', {
+      endpoint: subscription.endpoint.substring(0, 50) + '...',
+      timeSlots: timeSlots?.length || 0,
+      reminders: reminders?.length || 0
+    });
 
     return res.status(200).json({
       success: true,
-      message: '訂閱成功',
-      subscriptionId
+      message: '訂閱已接收（等待資料庫連結）',
+      note: 'KV 資料庫設定完成後將自動啟用'
     });
 
   } catch (error) {
