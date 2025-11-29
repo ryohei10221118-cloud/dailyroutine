@@ -6,6 +6,34 @@
 const { kv } = require('./redis');
 const webpush = require('web-push');
 
+// 驗證 VAPID 環境變數
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  throw new Error('VAPID keys are not configured. Please set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.');
+}
+
+// 驗證 VAPID 公鑰格式
+try {
+  // 將 base64url 轉換為 base64
+  const base64 = process.env.VAPID_PUBLIC_KEY
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  // 加上 padding
+  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const paddedBase64 = base64 + padding;
+
+  // 解碼檢查長度
+  const decoded = Buffer.from(paddedBase64, 'base64');
+
+  // VAPID 公鑰應該是 65 bytes (未壓縮的 EC 公鑰) 或 91 bytes (SPKI 格式)
+  if (decoded.length !== 65 && decoded.length !== 91) {
+    throw new Error(`VAPID public key has invalid length: ${decoded.length} bytes. Expected 65 or 91 bytes.`);
+  }
+} catch (error) {
+  console.error('❌ VAPID public key validation failed:', error.message);
+  throw new Error(`Invalid VAPID_PUBLIC_KEY format: ${error.message}`);
+}
+
 // 設定 VAPID
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT || 'mailto:skincare@example.com',

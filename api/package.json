@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'No build step required'",
-    "generate-keys": "node generate-vapid-keys.js"
+    "generate-keys": "node ../generate-vapid-keys.js",
+    "verify-keys": "node ../verify-vapid-keys.js"
   },
   "dependencies": {
     "ioredis": "^5.3.2",

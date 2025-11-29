@@ -5,38 +5,11 @@
  * 執行方式: node generate-vapid-keys.js
  */
 
-const crypto = require('crypto');
+const webpush = require('web-push');
 
-function generateVAPIDKeys() {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
-    namedCurve: 'prime256v1',
-    publicKeyEncoding: {
-      type: 'spki',
-      format: 'der'
-    },
-    privateKeyEncoding: {
-      type: 'pkcs8',
-      format: 'der'
-    }
-  });
-
-  const publicKeyBase64 = publicKey.toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-
-  const privateKeyBase64 = privateKey.toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-
-  return {
-    publicKey: publicKeyBase64,
-    privateKey: privateKeyBase64
-  };
-}
-
-const keys = generateVAPIDKeys();
+// 使用 web-push 內建的 VAPID 金鑰生成方法
+// 這確保金鑰格式與 web-push 完全相容
+const keys = webpush.generateVAPIDKeys();
 
 console.log('\n🔑 VAPID 金鑰已生成！\n');
 console.log('請將以下內容加入 Vercel 環境變數：\n');
