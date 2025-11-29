@@ -716,6 +716,32 @@ App.showRoutineDetail = function(routineId, slotId = null) {
         stepHTML += `</div>`;
         stepDiv.innerHTML = stepHTML;
 
+        // 添加点击整个区块来切换勾选的功能
+        const checkbox = stepDiv.querySelector('.step-checkbox');
+        stepDiv.addEventListener('click', (e) => {
+            // 如果点击的就是 checkbox 本身，让其正常处理
+            if (e.target === checkbox) return;
+
+            // 否则切换 checkbox 状态
+            checkbox.checked = !checkbox.checked;
+
+            // 更新步骤项的完成状态样式
+            if (checkbox.checked) {
+                stepDiv.classList.add('completed');
+            } else {
+                stepDiv.classList.remove('completed');
+            }
+        });
+
+        // 当直接点击 checkbox 时也要更新样式
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                stepDiv.classList.add('completed');
+            } else {
+                stepDiv.classList.remove('completed');
+            }
+        });
+
         stepsList.appendChild(stepDiv);
     });
 
@@ -2693,6 +2719,9 @@ App.updateRemindersView = function() {
     sortedReminders.forEach(reminder => {
         const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
         const daysText = reminder.weekdays.map(d => weekdayNames[d]).join('、');
+        const advanceText = reminder.advanceMinutes > 0
+            ? ` <span style="color: var(--warning-color); font-size: 12px;">(提前 ${reminder.advanceMinutes} 分鐘)</span>`
+            : '';
 
         const card = document.createElement('div');
         card.className = 'reminder-card';
@@ -2700,7 +2729,7 @@ App.updateRemindersView = function() {
             <div class="reminder-info">
                 <div class="reminder-title">${reminder.title}</div>
                 <div class="reminder-content">${reminder.content || ''}</div>
-                <div class="reminder-time">⏰ ${reminder.time}</div>
+                <div class="reminder-time">⏰ ${reminder.time}${advanceText}</div>
                 <div class="reminder-days">週${daysText}</div>
             </div>
             <div class="reminder-actions">
@@ -2726,6 +2755,7 @@ App.showReminderModal = function(reminderId = null) {
             document.getElementById('reminderTitle').value = reminder.title;
             document.getElementById('reminderContent').value = reminder.content || '';
             document.getElementById('reminderTime').value = reminder.time;
+            document.getElementById('reminderAdvanceMinutes').value = reminder.advanceMinutes || 0;
 
             // 設定星期選擇
             document.querySelectorAll('.reminder-weekday').forEach(input => {
@@ -2736,6 +2766,7 @@ App.showReminderModal = function(reminderId = null) {
         document.getElementById('reminderTitle').value = '';
         document.getElementById('reminderContent').value = '';
         document.getElementById('reminderTime').value = '';
+        document.getElementById('reminderAdvanceMinutes').value = 0;
         document.querySelectorAll('.reminder-weekday').forEach(input => {
             input.checked = false;
         });
@@ -2752,6 +2783,7 @@ App.saveReminder = function() {
     const title = document.getElementById('reminderTitle').value.trim();
     const content = document.getElementById('reminderContent').value.trim();
     const time = document.getElementById('reminderTime').value;
+    const advanceMinutes = parseInt(document.getElementById('reminderAdvanceMinutes').value) || 0;
 
     if (!title || !time) {
         alert('請填寫提醒標題和時間！');
@@ -2776,6 +2808,7 @@ App.saveReminder = function() {
             reminder.content = content;
             reminder.time = time;
             reminder.weekdays = weekdays;
+            reminder.advanceMinutes = advanceMinutes;
         }
     } else {
         // 新增提醒
@@ -2785,6 +2818,7 @@ App.saveReminder = function() {
             content,
             time,
             weekdays,
+            advanceMinutes,
             enabled: true
         };
         this.reminders.push(newReminder);
