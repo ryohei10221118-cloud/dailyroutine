@@ -29,7 +29,6 @@
                 <button class="tab-btn" data-tab="schedule">時段設定</button>
                 <button class="tab-btn" data-tab="reminders">提醒</button>
                 <button class="tab-btn" data-tab="products">產品管理</button>
-                <button class="tab-btn" data-tab="history">使用記錄</button>
             </nav>
 
             <!-- 今日流程頁面 -->
@@ -154,39 +153,6 @@
                 </div>
 
                 <div class="products-grid" id="productsList">
-                    <!-- 動態生成 -->
-                </div>
-            </section>
-
-            <!-- 使用記錄頁面 -->
-            <section class="tab-content" id="history-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">📊 使用記錄</h2>
-                    <button class="btn-select-mode" id="toggleSelectModeBtn">選擇</button>
-                </div>
-
-                <div class="batch-actions" id="batchActions" style="display: none;">
-                    <button class="btn-select-all" id="selectAllBtn">全選</button>
-                    <button class="btn-delete-selected" id="deleteSelectedBtn">刪除選中</button>
-                    <button class="btn-cancel-select" id="cancelSelectBtn">取消</button>
-                </div>
-
-                <div class="stats-cards">
-                    <div class="stat-card">
-                        <div class="stat-number" id="streakDays">0</div>
-                        <div class="stat-label">連續天數</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="completionRate">0%</div>
-                        <div class="stat-label">完成率</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalRoutines">0</div>
-                        <div class="stat-label">總流程數</div>
-                    </div>
-                </div>
-
-                <div class="history-list" id="historyList">
                     <!-- 動態生成 -->
                 </div>
             </section>
@@ -348,6 +314,23 @@
                     <textarea id="reminderContent" placeholder="提醒的詳細內容..." rows="3"></textarea>
                 </div>
                 <div class="form-group">
+                    <label>提醒類型</label>
+                    <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="reminderType" value="recurring" id="reminderTypeRecurring" checked>
+                            重複提醒
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="reminderType" value="oneTime" id="reminderTypeOneTime">
+                            一次性提醒
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="reminderDateGroup" style="display: none;">
+                    <label>提醒日期</label>
+                    <input type="date" id="reminderDate">
+                </div>
+                <div class="form-group">
                     <label>提醒時間</label>
                     <input type="time" id="reminderTime">
                 </div>
@@ -356,7 +339,7 @@
                     <input type="number" id="reminderAdvanceMinutes" min="0" max="60" value="0" placeholder="0 = 準時通知">
                     <small style="color: var(--text-secondary); display: block; margin-top: 4px;">設定為 0 則在設定時間準時通知，設定為 5 則提前 5 分鐘通知</small>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="reminderWeekdaysGroup">
                     <label>重複日期</label>
                     <div class="weekday-selector">
                         <label><input type="checkbox" value="1" class="reminder-weekday"> 週一</label>

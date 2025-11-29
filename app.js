@@ -520,6 +520,16 @@ App.setupEventListeners = function() {
         document.getElementById('reminderModal').classList.remove('active');
     });
 
+    // 提醒類型切換
+    document.getElementById('reminderTypeRecurring')?.addEventListener('change', () => {
+        document.getElementById('reminderDateGroup').style.display = 'none';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'block';
+    });
+    document.getElementById('reminderTypeOneTime')?.addEventListener('change', () => {
+        document.getElementById('reminderDateGroup').style.display = 'block';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'none';
+    });
+
     // 通知權限
     document.getElementById('notificationBtn')?.addEventListener('click', () => this.requestNotificationPermission());
 
@@ -2717,11 +2727,22 @@ App.updateRemindersView = function() {
     const sortedReminders = [...this.reminders].sort((a, b) => a.time.localeCompare(b.time));
 
     sortedReminders.forEach(reminder => {
-        const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
-        const daysText = reminder.weekdays.map(d => weekdayNames[d]).join('、');
         const advanceText = reminder.advanceMinutes > 0
             ? ` <span style="color: var(--warning-color); font-size: 12px;">(提前 ${reminder.advanceMinutes} 分鐘)</span>`
             : '';
+
+        let scheduleText = '';
+        if (reminder.isOneTime) {
+            // 一次性提醒
+            const dateObj = new Date(reminder.date + 'T00:00:00');
+            const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+            scheduleText = `📅 ${dateStr}`;
+        } else {
+            // 重複提醒
+            const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
+            const daysText = (reminder.weekdays || []).map(d => weekdayNames[d]).join('、');
+            scheduleText = `週${daysText}`;
+        }
 
         const card = document.createElement('div');
         card.className = 'reminder-card';
@@ -2730,7 +2751,7 @@ App.updateRemindersView = function() {
                 <div class="reminder-title">${reminder.title}</div>
                 <div class="reminder-content">${reminder.content || ''}</div>
                 <div class="reminder-time">⏰ ${reminder.time}${advanceText}</div>
-                <div class="reminder-days">週${daysText}</div>
+                <div class="reminder-days">${scheduleText}</div>
             </div>
             <div class="reminder-actions">
                 <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
@@ -2757,16 +2778,31 @@ App.showReminderModal = function(reminderId = null) {
             document.getElementById('reminderTime').value = reminder.time;
             document.getElementById('reminderAdvanceMinutes').value = reminder.advanceMinutes || 0;
 
-            // 設定星期選擇
-            document.querySelectorAll('.reminder-weekday').forEach(input => {
-                input.checked = reminder.weekdays.includes(parseInt(input.value));
-            });
+            // 設定提醒類型
+            if (reminder.isOneTime) {
+                document.getElementById('reminderTypeOneTime').checked = true;
+                document.getElementById('reminderDate').value = reminder.date || '';
+                document.getElementById('reminderDateGroup').style.display = 'block';
+                document.getElementById('reminderWeekdaysGroup').style.display = 'none';
+            } else {
+                document.getElementById('reminderTypeRecurring').checked = true;
+                document.getElementById('reminderDateGroup').style.display = 'none';
+                document.getElementById('reminderWeekdaysGroup').style.display = 'block';
+                // 設定星期選擇
+                document.querySelectorAll('.reminder-weekday').forEach(input => {
+                    input.checked = (reminder.weekdays || []).includes(parseInt(input.value));
+                });
+            }
         }
     } else {
         document.getElementById('reminderTitle').value = '';
         document.getElementById('reminderContent').value = '';
         document.getElementById('reminderTime').value = '';
+        document.getElementById('reminderDate').value = '';
         document.getElementById('reminderAdvanceMinutes').value = 0;
+        document.getElementById('reminderTypeRecurring').checked = true;
+        document.getElementById('reminderDateGroup').style.display = 'none';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'block';
         document.querySelectorAll('.reminder-weekday').forEach(input => {
             input.checked = false;
         });
@@ -2784,20 +2820,33 @@ App.saveReminder = function() {
     const content = document.getElementById('reminderContent').value.trim();
     const time = document.getElementById('reminderTime').value;
     const advanceMinutes = parseInt(document.getElementById('reminderAdvanceMinutes').value) || 0;
+    const isOneTime = document.getElementById('reminderTypeOneTime').checked;
 
     if (!title || !time) {
         alert('請填寫提醒標題和時間！');
         return;
     }
 
-    const weekdays = [];
-    document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
-        weekdays.push(parseInt(input.value));
-    });
+    let date = null;
+    let weekdays = [];
 
-    if (weekdays.length === 0) {
-        alert('請至少選擇一個重複日期！');
-        return;
+    if (isOneTime) {
+        // 一次性提醒
+        date = document.getElementById('reminderDate').value;
+        if (!date) {
+            alert('請選擇提醒日期！');
+            return;
+        }
+    } else {
+        // 重複提醒
+        document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
+            weekdays.push(parseInt(input.value));
+        });
+
+        if (weekdays.length === 0) {
+            alert('請至少選擇一個重複日期！');
+            return;
+        }
     }
 
     if (this.editingReminderId) {
@@ -2807,6 +2856,8 @@ App.saveReminder = function() {
             reminder.title = title;
             reminder.content = content;
             reminder.time = time;
+            reminder.isOneTime = isOneTime;
+            reminder.date = date;
             reminder.weekdays = weekdays;
             reminder.advanceMinutes = advanceMinutes;
         }
@@ -2817,6 +2868,8 @@ App.saveReminder = function() {
             title,
             content,
             time,
+            isOneTime,
+            date,
             weekdays,
             advanceMinutes,
             enabled: true

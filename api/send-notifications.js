@@ -133,9 +133,21 @@ module.exports = async (req, res) => {
           // 計算實際通知時間（考慮提前分鐘數）
           const notifyTime = getNotificationTime(reminder.time, reminder.advanceMinutes || 0);
 
-          if (reminder.enabled &&
-              notifyTime === currentTime &&
-              reminder.weekdays.includes(currentWeekday)) {
+          let shouldSend = false;
+
+          if (reminder.enabled && notifyTime === currentTime) {
+            if (reminder.isOneTime) {
+              // 一次性提醒：檢查日期是否匹配
+              const now = new Date();
+              const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+              shouldSend = reminder.date === today;
+            } else {
+              // 重複提醒：檢查星期是否匹配
+              shouldSend = (reminder.weekdays || []).includes(currentWeekday);
+            }
+          }
+
+          if (shouldSend) {
 
             const advanceText = reminder.advanceMinutes > 0
               ? ` (原時間: ${reminder.time})`
