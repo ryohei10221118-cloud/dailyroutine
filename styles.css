@@ -275,11 +275,22 @@ h3 {
     padding: 12px;
     background: var(--bg-secondary);
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    cursor: pointer;
+    user-select: none;
+}
+
+.step-item:hover {
+    background: #e8e5ed;
+    transform: translateX(3px);
 }
 
 .step-item.completed {
     background: #f2eef7;
+}
+
+.step-item.completed:hover {
+    background: #ede7f5;
 }
 
 .step-checkbox {
@@ -1075,11 +1086,41 @@ h3 {
 .btn-test-notification {
     background: var(--secondary-color);
     color: white;
+    border-radius: 8px;
 }
 
 .btn-test-notification:hover {
     background: #1976D2;
     opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-check-update {
+    background: var(--accent-blue);
+    color: white;
+}
+
+.btn-check-update:hover {
+    background: #94a8ba;
+    transform: translateY(-2px);
+}
+
+.btn-check-update.checking {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-check-update.checking::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
 }
 
 /* 模態框 */
@@ -1297,7 +1338,7 @@ h3 {
 /* 響應式設計 */
 @media (max-width: 480px) {
     .main-content {
-        padding: 4px;
+        padding: 8px;
     }
 
     .stats-cards {
@@ -1313,13 +1354,15 @@ h3 {
         padding: 12px 8px;
     }
 
-    /* 日曆優化 - 最激進版本 */
+    /* 日曆優化 - 確保不會被裁切 */
     .calendar-grid {
-        gap: 0;
-        padding: 0;
-        margin: 4px 0;
-        border-radius: 4px;
-        box-shadow: none;
+        gap: 4px;
+        padding: 8px;
+        margin: 8px 0;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .calendar-day {
@@ -1350,25 +1393,30 @@ h3 {
     }
 
     .calendar-controls {
-        padding: 6px;
+        padding: 10px;
         margin: 8px 0;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .calendar-month {
-        font-size: 15px;
+        font-size: 16px;
     }
 
     .btn-calendar-nav {
-        width: 30px;
-        height: 30px;
-        font-size: 14px;
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        flex-shrink: 0;
     }
 
     .calendar-legend {
-        padding: 8px;
+        padding: 10px;
         margin: 8px 0;
         gap: 12px;
         flex-wrap: wrap;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .legend-item {
@@ -1383,11 +1431,15 @@ h3 {
     .calendar-stats {
         padding: 12px;
         margin-top: 8px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .calendar-stat-item {
-        padding: 8px;
-        margin-bottom: 6px;
+        padding: 10px;
+        margin-bottom: 8px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     /* Modal 和表單優化 */
@@ -1599,7 +1651,7 @@ h3 {
     margin: 15px 0;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     box-sizing: border-box;
 }
 

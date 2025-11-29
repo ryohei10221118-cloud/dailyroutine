@@ -43,13 +43,46 @@ webpush.setVapidDetails(
 
 function getCurrentTime() {
   const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const hours = utc8.getUTCHours().toString().padStart(2, '0');
+  const minutes = utc8.getUTCMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
 function getCurrentWeekday() {
-  return new Date().getDay();
+  const now = new Date();
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  return utc8.getUTCDay();
+}
+
+function getTodayDate() {
+  const now = new Date();
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const year = utc8.getUTCFullYear();
+  const month = String(utc8.getUTCMonth() + 1).padStart(2, '0');
+  const date = String(utc8.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
+// 計算提前通知的時間（根據提前分鐘數）
+function getNotificationTime(scheduledTime, advanceMinutes = 0) {
+  if (advanceMinutes === 0) return scheduledTime;
+
+  const [hours, minutes] = scheduledTime.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  const notifyMinutes = totalMinutes - advanceMinutes;
+
+  // 處理跨日情況（如果提前時間導致時間為負數）
+  if (notifyMinutes < 0) {
+    return null; // 不在當天發送
+  }
+
+  const notifyHours = Math.floor(notifyMinutes / 60);
+  const notifyMins = notifyMinutes % 60;
+  return `${notifyHours.toString().padStart(2, '0')}:${notifyMins.toString().padStart(2, '0')}`;
 }
 
 module.exports = async (req, res) => {
@@ -112,15 +145,33 @@ module.exports = async (req, res) => {
 
         // 檢查純提醒
         for (const reminder of reminders) {
-          if (reminder.enabled &&
-              reminder.time === currentTime &&
-              reminder.weekdays.includes(currentWeekday)) {
+          // 計算實際通知時間（考慮提前分鐘數）
+          const notifyTime = getNotificationTime(reminder.time, reminder.advanceMinutes || 0);
+
+          let shouldSend = false;
+
+          if (reminder.enabled && notifyTime === currentTime) {
+            if (reminder.isOneTime) {
+              // 一次性提醒：檢查日期是否匹配（使用 UTC+8 時區）
+              const today = getTodayDate();
+              shouldSend = reminder.date === today;
+            } else {
+              // 重複提醒：檢查星期是否匹配
+              shouldSend = (reminder.weekdays || []).includes(currentWeekday);
+            }
+          }
+
+          if (shouldSend) {
+
+            const advanceText = reminder.advanceMinutes > 0
+              ? ` (原時間: ${reminder.time})`
+              : '';
 
             await webpush.sendNotification(
               subscription,
               JSON.stringify({
                 title: reminder.title || '⏰ 提醒',
-                body: reminder.content || '提醒時間到了！',
+                body: `${reminder.content || '提醒時間到了！'}${advanceText}`,
                 icon: '/icon-192.png',
                 badge: '/icon-192.png',
                 tag: `reminder-${reminder.id}`,
@@ -133,7 +184,7 @@ module.exports = async (req, res) => {
             );
 
             sentCount++;
-            console.log(`✅ Sent notification for reminder: ${reminder.title}`);
+            console.log(`✅ Sent notification for reminder: ${reminder.title} at ${currentTime} (scheduled: ${reminder.time}, advance: ${reminder.advanceMinutes || 0}min)`);
           }
         }
 
