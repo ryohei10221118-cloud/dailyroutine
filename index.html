@@ -557,33 +557,71 @@
             document.addEventListener('DOMContentLoaded', () => {
                 const checkUpdateBtn = document.getElementById('checkUpdateBtn');
                 if (checkUpdateBtn) {
+                    let updateCheckInProgress = false;
+
                     checkUpdateBtn.addEventListener('click', async () => {
                         if (!registration) {
                             alert('Service Worker 尚未註冊');
                             return;
                         }
 
+                        if (updateCheckInProgress) {
+                            return;
+                        }
+
+                        updateCheckInProgress = true;
                         checkUpdateBtn.classList.add('checking');
                         checkUpdateBtn.textContent = '🔄 檢查中...';
 
                         try {
-                            await registration.update();
+                            // 強制重新獲取 Service Worker
+                            console.log('開始檢查更新...');
 
-                            // 等待一下看是否有更新
-                            setTimeout(() => {
-                                checkUpdateBtn.classList.remove('checking');
-                                checkUpdateBtn.textContent = '🔄 檢查更新';
+                            // 先嘗試更新 Service Worker
+                            const newReg = await registration.update();
 
-                                // 如果沒有觸發 updatefound，表示已是最新版本
-                                if (!registration.installing && !registration.waiting) {
+                            // 等待更長時間以確保更新檢查完成
+                            await new Promise(resolve => setTimeout(resolve, 3000));
+
+                            console.log('Service Worker 狀態:', {
+                                installing: registration.installing,
+                                waiting: registration.waiting,
+                                active: registration.active
+                            });
+
+                            // 檢查是否有等待中的新版本
+                            if (registration.waiting) {
+                                console.log('發現等待中的新版本');
+                                showUpdateNotification();
+                            } else if (registration.installing) {
+                                console.log('發現正在安裝的新版本');
+                                // 等待安裝完成
+                                registration.installing.addEventListener('statechange', (e) => {
+                                    if (e.target.state === 'installed') {
+                                        showUpdateNotification();
+                                    }
+                                });
+                            } else {
+                                // 強制清除緩存並重新加載
+                                console.log('嘗試清除緩存...');
+                                if ('caches' in window) {
+                                    const cacheNames = await caches.keys();
+                                    console.log('找到的緩存:', cacheNames);
+
+                                    // 如果確實沒有更新，顯示提示
                                     showNoUpdateNotification();
                                 }
-                            }, 2000);
+                            }
+
+                            checkUpdateBtn.classList.remove('checking');
+                            checkUpdateBtn.textContent = '🔄 檢查更新';
+                            updateCheckInProgress = false;
                         } catch (err) {
                             console.error('檢查更新失敗:', err);
                             checkUpdateBtn.classList.remove('checking');
                             checkUpdateBtn.textContent = '🔄 檢查更新';
-                            alert('檢查更新失敗，請稍後再試');
+                            updateCheckInProgress = false;
+                            alert('檢查更新失敗：' + err.message);
                         }
                     });
                 }

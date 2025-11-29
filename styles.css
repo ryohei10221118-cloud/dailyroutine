@@ -182,7 +182,7 @@ body {
 .tab-content {
     display: none;
     animation: fadeIn 0.3s;
-    margin-top: 3px;
+    margin-top: 6px;
 }
 
 .tab-content.active {

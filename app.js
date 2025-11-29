@@ -2992,73 +2992,119 @@ App.editRoutine = function(routineId) {
     document.getElementById('editRoutineName').value = routine.name;
 
     // 渲染步驟列表
+    this.renderEditSteps();
+
+    // 顯示 modal
+    document.getElementById('editRoutineModal').classList.add('active');
+};
+
+App.renderEditSteps = function() {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
     const stepsContainer = document.getElementById('editRoutineSteps');
     stepsContainer.innerHTML = '';
 
     routine.steps.forEach((step, index) => {
         const stepDiv = document.createElement('div');
         stepDiv.className = 'edit-step-item';
-        stepDiv.style.cssText = 'margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f9f9f9;';
+        stepDiv.style.cssText = 'margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f9f9f9; position: relative;';
 
-        let stepHTML = `
-            <div style="font-weight: 600; margin-bottom: 10px; color: #333;">
-                步驟 ${index + 1}: ${step.text}
+        stepDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: #333;">步驟 ${index + 1}</strong>
+                <button class="btn-icon delete-step-btn" data-step-index="${index}" style="color: #d32f2f;">🗑️</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">步驟描述</label>
+                <input type="text" class="step-text-input" data-step-index="${index}" value="${step.text}"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">備註（選填）</label>
+                <input type="text" class="step-notes-input" data-step-index="${index}" value="${step.notes || ''}"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                    placeholder="例如：溫和清潔，不要過度摩擦">
             </div>
         `;
 
-        if (step.notes) {
-            stepHTML += `<div style="font-size: 13px; color: #666; margin-bottom: 10px;">💡 ${step.notes}</div>`;
-        }
-
-        // 產品選擇
-        const productOptions = Object.values(this.products).map(p =>
-            `<option value="${p.id}">${p.icon} ${p.name}</option>`
-        ).join('');
-
-        stepHTML += `
-            <div style="margin-top: 10px;">
-                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">使用產品（可多選）</label>
-                <select multiple class="step-products-select" data-step-index="${index}"
-                    style="width: 100%; min-height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="">不使用產品</option>
-                    ${productOptions}
-                </select>
-                <div style="font-size: 12px; color: #999; margin-top: 5px;">按住 Ctrl/Cmd 可多選</div>
-            </div>
-        `;
-
-        stepDiv.innerHTML = stepHTML;
-
-        // 如果步驟有關聯產品，預選它們
-        if (step.products && step.products.length > 0) {
-            setTimeout(() => {
-                const select = stepDiv.querySelector('.step-products-select');
-                step.products.forEach(productId => {
-                    const option = select.querySelector(`option[value="${productId}"]`);
-                    if (option) option.selected = true;
-                });
-            }, 0);
-        }
+        // 添加刪除按鈕事件
+        setTimeout(() => {
+            const deleteBtn = stepDiv.querySelector('.delete-step-btn');
+            deleteBtn.addEventListener('click', () => this.deleteEditStep(index));
+        }, 0);
 
         stepsContainer.appendChild(stepDiv);
     });
 
-    // 顯示 modal
-    document.getElementById('editRoutineModal').classList.add('active');
+    // 添加"新增步驟"按鈕
+    const addBtnDiv = document.createElement('div');
+    addBtnDiv.style.cssText = 'margin-top: 15px; text-align: center;';
+    addBtnDiv.innerHTML = `
+        <button class="btn-primary" id="addStepBtn" style="padding: 10px 20px;">
+            ➕ 新增步驟
+        </button>
+    `;
+    stepsContainer.appendChild(addBtnDiv);
+
+    setTimeout(() => {
+        document.getElementById('addStepBtn').addEventListener('click', () => this.addEditStep());
+    }, 0);
+};
+
+App.deleteEditStep = function(stepIndex) {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    if (routine.steps.length <= 1) {
+        alert('至少需要保留一個步驟！');
+        return;
+    }
+
+    if (confirm(`確定要刪除步驟 ${stepIndex + 1}：${routine.steps[stepIndex].text}？`)) {
+        routine.steps.splice(stepIndex, 1);
+        this.renderEditSteps();
+    }
+};
+
+App.addEditStep = function() {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    routine.steps.push({
+        text: '新步驟',
+        notes: ''
+    });
+    this.renderEditSteps();
 };
 
 App.saveEditRoutine = function() {
     const routine = this.routines[this.editingRoutineId];
     if (!routine) return;
 
-    // 收集每個步驟的產品選擇
-    document.querySelectorAll('.step-products-select').forEach(select => {
-        const stepIndex = parseInt(select.dataset.stepIndex);
-        const selectedProducts = Array.from(select.selectedOptions)
-            .map(option => option.value)
-            .filter(v => v !== ''); // 過濾掉"不使用產品"選項
+    // 更新流程名稱
+    const newName = document.getElementById('editRoutineName').value.trim();
+    if (!newName) {
+        alert('請輸入流程名稱！');
+        return;
+    }
+    routine.name = newName;
 
-        routine.steps[stepIndex].products = selectedProducts;
+    // 收集所有步驟的文本和備註
+    const textInputs = document.querySelectorAll('.step-text-input');
+    const notesInputs = document.querySelectorAll('.step-notes-input');
+
+    textInputs.forEach((input, index) => {
+        const text = input.value.trim();
+        if (!text) {
+            alert(`步驟 ${index + 1} 的描述不能為空！`);
+            return;
+        }
+        routine.steps[index].text = text;
+    });
+
+    notesInputs.forEach((input, index) => {
+        routine.steps[index].notes = input.value.trim();
     });
 
     this.saveData();
