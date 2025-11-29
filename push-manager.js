@@ -4,7 +4,7 @@
 
 const PushManager = {
   // VAPID 公鑰
-  vapidPublicKey: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnVp8HJC08Hiik5FlgBPiJa9iRt7ivKAe4NHM-58ujsDXRgIxWwWZ5Uhe94Tj-mhkhAvN2VxoGfM3bfaFyrabBQ',
+  vapidPublicKey: 'BKzONH1duY2OznZoQmri9u-0S1uvmcqHDrFNLbCDCkanuvVhEKjX2dJzWiOtEqoLVXfhNz-tsCfAexYRNZpOgAY',
 
   // API 端點
   apiEndpoint: '/api',
