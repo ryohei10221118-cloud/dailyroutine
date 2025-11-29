@@ -17,6 +17,15 @@
         <header class="app-header">
             <h1>🧴 保養提醒助手</h1>
             <div class="header-date" id="currentDate"></div>
+            <div class="header-menu-container">
+                <button class="btn-icon header-menu-trigger" id="headerMenuBtn" title="功能選單">⚙️</button>
+                <div class="header-menu-dropdown" id="headerMenuDropdown">
+                    <button class="header-menu-item" id="smartSuggestBtn">✨ AI 智能建議</button>
+                    <button class="header-menu-item" id="notificationBtn">🔔 啟用通知</button>
+                    <button class="header-menu-item" id="testNotificationBtn" style="display: none;">🔔 測試通知</button>
+                    <button class="header-menu-item" id="checkUpdateBtn">🔄 檢查更新</button>
+                </div>
+            </div>
         </header>
 
         <!-- 主要內容區 -->
@@ -199,13 +208,6 @@
             </section>
         </main>
 
-        <!-- 底部設置按鈕 -->
-        <footer class="app-footer">
-            <button class="btn-smart-suggest" id="smartSuggestBtn">✨ AI 智能建議</button>
-            <button class="btn-notification" id="notificationBtn">🔔 啟用通知</button>
-            <button class="btn-test-notification" id="testNotificationBtn" style="display: none;">🔔 測試通知</button>
-            <button class="btn-check-update" id="checkUpdateBtn">🔄 檢查更新</button>
-        </footer>
     </div>
 
     <!-- 模態框 - 新增時段 -->
@@ -413,6 +415,32 @@
             <div class="modal-footer">
                 <button class="btn-secondary modal-close">關閉</button>
                 <button class="btn-primary" id="startRoutineBtn">開始執行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 編輯流程 -->
+    <div class="modal" id="editRoutineModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>✏️ 編輯流程</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>流程名稱</label>
+                    <input type="text" id="editRoutineName" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>流程步驟</label>
+                    <div id="editRoutineSteps">
+                        <!-- 動態生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelEditRoutineBtn">取消</button>
+                <button class="btn-primary" id="saveEditRoutineBtn">保存修改</button>
             </div>
         </div>
     </div>
