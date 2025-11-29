@@ -1313,7 +1313,10 @@ App.updateRoutinesView = function() {
             card.innerHTML = `
                 <div class="routine-header-row">
                     <div class="routine-name">${routine.name}</div>
-                    <div class="routine-type-badge">${this.getRoutineTypeName(routine.type)}</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div class="routine-type-badge">${this.getRoutineTypeName(routine.type)}</div>
+                        <button class="btn-icon" onclick="App.editRoutine('${routine.id}')" title="編輯流程">✏️</button>
+                    </div>
                 </div>
                 <div class="routine-meta">${routine.steps.length} 個步驟${routine.warnings ? ' · ' + routine.warnings.length + ' 個注意事項' : ''}</div>
                 ${stepsHTML}
@@ -2890,6 +2893,23 @@ App.deleteReminder = function(id) {
     this.reminders = this.reminders.filter(r => r.id !== id);
     this.saveData();
     this.updateRemindersView();
+};
+
+App.editRoutine = function(routineId) {
+    const routine = this.routines[routineId];
+    if (!routine) {
+        alert('找不到此流程');
+        return;
+    }
+
+    // 簡單提示：完整的編輯功能正在開發中
+    const userChoice = confirm(`編輯流程：${routine.name}\n\n此功能正在開發中。\n\n目前您可以：\n1. 使用「選擇」模式刪除不需要的流程\n2. 使用「AI 智能建議」重新生成流程\n\n點擊「確定」查看流程詳細信息`);
+
+    if (userChoice) {
+        // 在控制台顯示流程信息供開發使用
+        console.log('流程信息：', routine);
+        alert(`流程名稱：${routine.name}\n類型：${this.getRoutineTypeName(routine.type)}\n步驟數：${routine.steps.length}\n\n步驟詳情請查看控制台（F12）`);
+    }
 };
 
 // 定期檢查通知（每分鐘）
