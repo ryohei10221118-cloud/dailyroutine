@@ -43,13 +43,28 @@ webpush.setVapidDetails(
 
 function getCurrentTime() {
   const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const hours = utc8.getUTCHours().toString().padStart(2, '0');
+  const minutes = utc8.getUTCMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
 function getCurrentWeekday() {
-  return new Date().getDay();
+  const now = new Date();
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  return utc8.getUTCDay();
+}
+
+function getTodayDate() {
+  const now = new Date();
+  // 轉換為 UTC+8
+  const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const year = utc8.getUTCFullYear();
+  const month = String(utc8.getUTCMonth() + 1).padStart(2, '0');
+  const date = String(utc8.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
 }
 
 // 計算提前通知的時間（根據提前分鐘數）
@@ -137,9 +152,8 @@ module.exports = async (req, res) => {
 
           if (reminder.enabled && notifyTime === currentTime) {
             if (reminder.isOneTime) {
-              // 一次性提醒：檢查日期是否匹配
-              const now = new Date();
-              const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+              // 一次性提醒：檢查日期是否匹配（使用 UTC+8 時區）
+              const today = getTodayDate();
               shouldSend = reminder.date === today;
             } else {
               // 重複提醒：檢查星期是否匹配
