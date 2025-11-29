@@ -137,16 +137,50 @@ Cron job 已經在 `vercel.json` 中設定：
 
 ### 常見問題
 
+**Q: 出現 "Vapid public key should be 65 bytes long when decoded" 錯誤？**
+
+這表示 VAPID 金鑰未正確設定或格式錯誤。請按照以下步驟修復：
+
+1. **驗證現有金鑰**（如果已設定環境變數）：
+   ```bash
+   # 設定環境變數後執行
+   export VAPID_PUBLIC_KEY=your_public_key
+   export VAPID_PRIVATE_KEY=your_private_key
+   node verify-vapid-keys.js
+   ```
+
+2. **重新生成 VAPID 金鑰**（推薦）：
+   ```bash
+   node generate-vapid-keys.js
+   ```
+   這會生成新的金鑰並儲存到 `.env.local`
+
+3. **在 Vercel 更新環境變數**：
+   - 前往 Vercel Dashboard → Settings → Environment Variables
+   - 更新或新增 `VAPID_PUBLIC_KEY`
+   - 更新或新增 `VAPID_PRIVATE_KEY`
+   - 更新或新增 `VAPID_SUBJECT`（格式：`mailto:your-email@example.com`）
+
+4. **更新前端公鑰**：
+   - 編輯 `push-manager.js`
+   - 將 `vapidPublicKey` 設定為新的公鑰（與 `VAPID_PUBLIC_KEY` 相同）
+
+5. **重新部署**：
+   ```bash
+   vercel --prod
+   ```
+
 **Q: 通知沒有收到？**
 - 檢查 Vercel Functions 日誌
 - 確認 Cron job 有在執行
-- 確認環境變數設定正確
+- 確認環境變數設定正確（使用 `/api/test` 端點檢查）
 - 確認時段設定有啟用
 
 **Q: 訂閱失敗？**
 - 檢查 VAPID 公鑰是否正確填入 `push-manager.js`
 - 檢查瀏覽器 Console 是否有錯誤
 - 確認使用的是 HTTPS（或 localhost）
+- 使用 `node verify-vapid-keys.js` 驗證金鑰格式
 
 **Q: iOS Safari 不支援？**
 - iOS 16.4+ 才支援 Web Push
