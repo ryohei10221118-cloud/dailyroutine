@@ -2692,8 +2692,15 @@ App.parseImportedSuggestion = function(text) {
     // 先嘗試解析 JSON
     try {
         const json = JSON.parse(text);
+
+        // 格式1：標準格式 { routines: [...], timeSlots: [...] }
         if (json.routines && json.timeSlots) {
             return json;
+        }
+
+        // 格式2：週計劃格式 [{ day: "Monday", routines: [...] }, ...]
+        if (Array.isArray(json) && json.length > 0 && json[0].day && json[0].routines) {
+            return this.parseWeeklyPlanJSON(json);
         }
     } catch (e) {
         // 不是 JSON，繼續文本解析
@@ -2758,6 +2765,79 @@ App.parseImportedSuggestion = function(text) {
         currentRoutine.steps = currentSteps;
         routines.push(currentRoutine);
     }
+
+    return { routines, timeSlots, products: {} };
+};
+
+// 解析週計劃 JSON 格式
+App.parseWeeklyPlanJSON = function(weeklyData) {
+    const routines = [];
+    const timeSlots = [];
+
+    // 星期幾映射
+    const dayMap = {
+        'Monday': 1, '週一': 1,
+        'Tuesday': 2, '週二': 2,
+        'Wednesday': 3, '週三': 3,
+        'Thursday': 4, '週四': 4,
+        'Friday': 5, '週五': 5,
+        'Saturday': 6, '週六': 6,
+        'Sunday': 0, '週日': 0
+    };
+
+    let routineId = 0;
+
+    weeklyData.forEach(dayData => {
+        const dayName = dayData.day;
+        const dayNameZh = dayData.weekday_zh || '';
+        const weekdayNum = dayMap[dayName] !== undefined ? dayMap[dayName] : dayMap[dayNameZh];
+
+        if (weekdayNum === undefined) {
+            console.warn('無法識別的星期:', dayName, dayNameZh);
+            return;
+        }
+
+        // 處理這一天的所有流程
+        dayData.routines.forEach(routineData => {
+            routineId++;
+
+            // 創建流程
+            const routine = {
+                id: `imported-routine-${routineId}`,
+                name: `【${dayNameZh || dayName}】${routineData.label}`,
+                type: 'custom',
+                steps: []
+            };
+
+            // 處理步驟
+            if (Array.isArray(routineData.steps)) {
+                routine.steps = routineData.steps.map(step => {
+                    if (typeof step === 'string') {
+                        return { text: step, notes: '' };
+                    } else if (step.text) {
+                        return { text: step.text, notes: step.notes || '' };
+                    }
+                    return { text: String(step), notes: '' };
+                });
+            }
+
+            routines.push(routine);
+
+            // 創建時段
+            const timeSlot = {
+                id: `imported-slot-${routineId}`,
+                name: `${dayNameZh || dayName} ${routineData.label}`,
+                time: routineData.time || '08:00',
+                routine: `imported-routine-${routineId}`,
+                weekdays: [weekdayNum], // 只在特定星期幾執行
+                enabled: true
+            };
+
+            timeSlots.push(timeSlot);
+        });
+    });
+
+    console.log(`已解析週計劃：${routines.length} 個流程，${timeSlots.length} 個時段`);
 
     return { routines, timeSlots, products: {} };
 };
