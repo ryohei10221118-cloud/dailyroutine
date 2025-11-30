@@ -12,3 +12,5 @@ Thumbs.db
 # 如果使用 npm（未來擴展用）
 node_modules/
 package-lock.json
+api/.env.local
+api/node_modules/
