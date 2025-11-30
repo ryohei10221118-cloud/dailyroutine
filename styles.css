@@ -1446,7 +1446,8 @@ h3 {
     box-sizing: border-box;
     max-width: 100%;
     min-width: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    resize: vertical;
 }
 
 .form-group input[type="time"] {
