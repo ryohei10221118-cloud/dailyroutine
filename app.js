@@ -9,13 +9,23 @@ const App = {
     currentSlotId: null,
     editingSlotId: null,
     editingProductId: null,
+    editingReminderId: null,
     notificationPermission: false,
     smartSuggestion: null,
+    selectMode: false,
+    selectedRecords: new Set(),
+    slotSelectMode: false,
+    selectedSlots: new Set(),
+    routineSelectMode: false,
+    selectedRoutines: new Set(),
+    productSelectMode: false,
+    selectedProducts: new Set(),
 
     // 資料
     routines: {},
     products: {},
     timeSlots: [],
+    reminders: [],
     history: [],
 
     // 初始化
@@ -36,6 +46,7 @@ const App = {
             this.routines = data.routines || {};
             this.products = data.products || {};
             this.timeSlots = data.timeSlots || [];
+            this.reminders = data.reminders || [];
             this.history = data.history || [];
         }
     },
@@ -46,9 +57,17 @@ const App = {
             routines: this.routines,
             products: this.products,
             timeSlots: this.timeSlots,
+            reminders: this.reminders,
             history: this.history
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
+
+        // 如果已訂閱推送，更新伺服器上的資料
+        if (typeof PushManager !== 'undefined') {
+            PushManager.updateSubscription().catch(err => {
+                console.log('Update subscription failed:', err);
+            });
+        }
     },
 
     // 初始化預設資料
@@ -482,6 +501,11 @@ App.setupEventListeners = function() {
         document.getElementById('timeSlotModal').classList.remove('active');
     });
 
+    // 星期篩選器
+    document.getElementById('weekdayFilter')?.addEventListener('change', () => {
+        this.updateScheduleView();
+    });
+
     // 產品管理
     document.getElementById('addProductBtn')?.addEventListener('click', () => this.showProductModal());
     document.getElementById('saveProductBtn')?.addEventListener('click', () => this.saveProduct());
@@ -489,8 +513,61 @@ App.setupEventListeners = function() {
         document.getElementById('productModal').classList.remove('active');
     });
 
+    // 提醒管理
+    document.getElementById('addReminderBtn')?.addEventListener('click', () => this.showReminderModal());
+    document.getElementById('saveReminderBtn')?.addEventListener('click', () => this.saveReminder());
+    document.getElementById('cancelReminderBtn')?.addEventListener('click', () => {
+        document.getElementById('reminderModal').classList.remove('active');
+    });
+
+    // 提醒類型切換
+    document.getElementById('reminderTypeRecurring')?.addEventListener('change', () => {
+        document.getElementById('reminderDateGroup').style.display = 'none';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'block';
+    });
+    document.getElementById('reminderTypeOneTime')?.addEventListener('change', () => {
+        document.getElementById('reminderDateGroup').style.display = 'block';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'none';
+    });
+
+    // 流程編輯
+    document.getElementById('cancelEditRoutineBtn')?.addEventListener('click', () => {
+        document.getElementById('editRoutineModal').classList.remove('active');
+        this.editingRoutineId = null;
+    });
+    document.getElementById('saveEditRoutineBtn')?.addEventListener('click', () => this.saveEditRoutine());
+
+    // Header 齒輪選單
+    const headerMenuBtn = document.getElementById('headerMenuBtn');
+    const headerMenuDropdown = document.getElementById('headerMenuDropdown');
+
+    headerMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        headerMenuDropdown.classList.toggle('show');
+        headerMenuBtn.classList.toggle('active');
+    });
+
+    // 點擊選單項目後關閉選單
+    document.querySelectorAll('.header-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            headerMenuDropdown.classList.remove('show');
+            headerMenuBtn.classList.remove('active');
+        });
+    });
+
+    // 點擊外部關閉選單
+    document.addEventListener('click', (e) => {
+        if (!headerMenuBtn.contains(e.target) && !headerMenuDropdown.contains(e.target)) {
+            headerMenuDropdown.classList.remove('show');
+            headerMenuBtn.classList.remove('active');
+        }
+    });
+
     // 通知權限
     document.getElementById('notificationBtn')?.addEventListener('click', () => this.requestNotificationPermission());
+
+    // 測試通知
+    document.getElementById('testNotificationBtn')?.addEventListener('click', () => this.sendTestNotification());
 
     // 完成流程
     document.getElementById('completeRoutineBtn')?.addEventListener('click', () => this.completeRoutine());
@@ -504,6 +581,52 @@ App.setupEventListeners = function() {
     document.getElementById('applySuggestBtn')?.addEventListener('click', () => this.applySmartSuggestion());
     document.getElementById('mergeRoutinesBtn')?.addEventListener('click', () => this.applySuggestionMerge());
     document.getElementById('replaceRoutinesBtn')?.addEventListener('click', () => this.applySuggestionReplace());
+
+    // 日曆導航
+    document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
+    document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
+
+    // 批量選擇（歷史記錄）
+    document.getElementById('toggleSelectModeBtn')?.addEventListener('click', () => this.toggleSelectMode());
+    document.getElementById('selectAllBtn')?.addEventListener('click', () => this.selectAllRecords());
+    document.getElementById('deleteSelectedBtn')?.addEventListener('click', () => this.deleteSelectedRecords());
+    document.getElementById('cancelSelectBtn')?.addEventListener('click', () => this.cancelSelectMode());
+
+    // 批量選擇（時段設定）
+    document.getElementById('toggleSlotSelectModeBtn')?.addEventListener('click', () => this.toggleSlotSelectMode());
+    document.getElementById('selectAllSlotsBtn')?.addEventListener('click', () => this.selectAllSlots());
+    document.getElementById('batchEditSlotsBtn')?.addEventListener('click', () => this.showBatchEditSlotModal());
+    document.getElementById('deleteSelectedSlotsBtn')?.addEventListener('click', () => this.deleteSelectedSlots());
+    document.getElementById('cancelSlotSelectBtn')?.addEventListener('click', () => this.cancelSlotSelectMode());
+
+    // 批量修改時段
+    document.getElementById('batchEditTimeCheck')?.addEventListener('change', (e) => {
+        document.getElementById('batchEditTime').disabled = !e.target.checked;
+    });
+    document.getElementById('batchEditRoutineCheck')?.addEventListener('change', (e) => {
+        document.getElementById('batchEditRoutine').disabled = !e.target.checked;
+    });
+    document.getElementById('batchEditWeekdaysCheck')?.addEventListener('change', (e) => {
+        document.querySelectorAll('.batch-weekday').forEach(input => {
+            input.disabled = !e.target.checked;
+        });
+    });
+    document.getElementById('saveBatchEditBtn')?.addEventListener('click', () => this.applyBatchEditSlots());
+    document.getElementById('cancelBatchEditBtn')?.addEventListener('click', () => {
+        document.getElementById('batchEditSlotModal').classList.remove('active');
+    });
+
+    // 批量選擇（流程管理）
+    document.getElementById('toggleRoutineSelectModeBtn')?.addEventListener('click', () => this.toggleRoutineSelectMode());
+    document.getElementById('selectAllRoutinesBtn')?.addEventListener('click', () => this.selectAllRoutines());
+    document.getElementById('deleteSelectedRoutinesBtn')?.addEventListener('click', () => this.deleteSelectedRoutines());
+    document.getElementById('cancelRoutineSelectBtn')?.addEventListener('click', () => this.cancelRoutineSelectMode());
+
+    // 批量選擇（產品管理）
+    document.getElementById('toggleProductSelectModeBtn')?.addEventListener('click', () => this.toggleProductSelectMode());
+    document.getElementById('selectAllProductsBtn')?.addEventListener('click', () => this.selectAllProducts());
+    document.getElementById('deleteSelectedProductsBtn')?.addEventListener('click', () => this.deleteSelectedProducts());
+    document.getElementById('cancelProductSelectBtn')?.addEventListener('click', () => this.cancelProductSelectMode());
 };
 
 App.switchTab = function(tabName) {
@@ -521,7 +644,10 @@ App.switchTab = function(tabName) {
 
     // 更新對應標籤的內容
     if (tabName === 'today') this.updateTodayView();
+    if (tabName === 'calendar') this.updateCalendarView();
+    if (tabName === 'routines') this.updateRoutinesView();
     if (tabName === 'schedule') this.updateScheduleView();
+    if (tabName === 'reminders') this.updateRemindersView();
     if (tabName === 'products') this.updateProductsView();
     if (tabName === 'history') this.updateHistoryView();
 };
@@ -572,15 +698,18 @@ App.updateTodayView = function() {
         });
 
         const item = document.createElement('div');
-        item.className = 'timeline-item' + (isCompleted ? ' completed' : '');
+        item.className = 'timeline-item' + (isCompleted ? ' completed locked' : '');
         item.innerHTML = `
             <div class="timeline-time">${slot.time}</div>
             <div class="timeline-title">${slot.name}</div>
             <div class="timeline-desc">${routine.name}</div>
-            <span class="timeline-status ${isCompleted ? 'completed' : 'pending'}">${isCompleted ? '✓ 已完成' : '待執行'}</span>
+            <span class="timeline-status ${isCompleted ? 'completed' : 'pending'}">${isCompleted ? '✓ 已完成 🔒' : '待執行'}</span>
         `;
 
-        item.addEventListener('click', () => this.showRoutineDetail(slot.routine, slot.id));
+        // 只有未完成的項目才能點擊
+        if (!isCompleted) {
+            item.addEventListener('click', () => this.showRoutineDetail(slot.routine, slot.id));
+        }
         timeline.appendChild(item);
     });
 };
@@ -630,6 +759,32 @@ App.showRoutineDetail = function(routineId, slotId = null) {
         stepHTML += `</div>`;
         stepDiv.innerHTML = stepHTML;
 
+        // 添加点击整个区块来切换勾选的功能
+        const checkbox = stepDiv.querySelector('.step-checkbox');
+        stepDiv.addEventListener('click', (e) => {
+            // 如果点击的就是 checkbox 本身，让其正常处理
+            if (e.target === checkbox) return;
+
+            // 否则切换 checkbox 状态
+            checkbox.checked = !checkbox.checked;
+
+            // 更新步骤项的完成状态样式
+            if (checkbox.checked) {
+                stepDiv.classList.add('completed');
+            } else {
+                stepDiv.classList.remove('completed');
+            }
+        });
+
+        // 当直接点击 checkbox 时也要更新样式
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                stepDiv.classList.add('completed');
+            } else {
+                stepDiv.classList.remove('completed');
+            }
+        });
+
         stepsList.appendChild(stepDiv);
     });
 
@@ -659,6 +814,19 @@ App.completeRoutine = function() {
     const routine = this.routines[this.currentRoutineId];
     const now = new Date();
 
+    // 獲取所有勾選的步驟
+    const checkboxes = document.querySelectorAll('#currentRoutine .step-checkbox');
+    const completedSteps = [];
+    checkboxes.forEach((checkbox, index) => {
+        if (checkbox.checked) {
+            completedSteps.push(index);
+        }
+    });
+
+    const totalSteps = routine.steps.length;
+    const completedCount = completedSteps.length;
+    const completionRate = Math.round((completedCount / totalSteps) * 100);
+
     // 記錄到歷史
     this.history.unshift({
         id: 'history-' + Date.now(),
@@ -666,7 +834,10 @@ App.completeRoutine = function() {
         routineName: routine.name,
         slotId: this.currentSlotId,
         date: now.toISOString(),
-        completed: true
+        completed: true,
+        completedSteps: completedSteps,
+        totalSteps: totalSteps,
+        completionRate: completionRate
     });
 
     // 只保留最近 100 條記錄
@@ -677,7 +848,19 @@ App.completeRoutine = function() {
     this.saveData();
 
     // 顯示完成訊息
-    alert('✅ 保養流程已完成！');
+    let message = '';
+    if (completionRate === 100) {
+        message = `✅ 完美！所有步驟都已完成 (${completedCount}/${totalSteps})`;
+    } else if (completionRate >= 50) {
+        message = `✅ 已記錄！完成了 ${completedCount}/${totalSteps} 個步驟 (${completionRate}%)`;
+    } else if (completionRate > 0) {
+        message = `✅ 已記錄！完成了 ${completedCount}/${totalSteps} 個步驟 (${completionRate}%)\n建議下次嘗試完成更多步驟哦～`;
+    } else {
+        message = '❌ 您沒有勾選任何步驟。\n如果要跳過此流程，請直接關閉即可。';
+        return;
+    }
+
+    alert(message);
 
     // 隱藏流程詳情
     this.closeRoutineDetail();
@@ -686,12 +869,58 @@ App.completeRoutine = function() {
     this.updateTodayView();
 };
 
+App.deleteHistoryRecord = function(recordId) {
+    // 確認是否要刪除
+    if (!confirm('確定要刪除這筆記錄嗎？刪除後該時段的保養流程將重新開啟。')) {
+        return;
+    }
+
+    // 查找並刪除記錄
+    const index = this.history.findIndex(record => record.id === recordId);
+    if (index !== -1) {
+        this.history.splice(index, 1);
+        this.saveData();
+
+        // 更新歷史記錄視圖
+        this.updateHistoryView();
+
+        // 更新今日視圖（會重新開啟對應的流程）
+        this.updateTodayView();
+
+        // 顯示提示訊息
+        alert('✅ 記錄已刪除，對應的保養流程已重新開啟！');
+    }
+};
+
 App.updateScheduleView = function() {
     const list = document.getElementById('timeSlotsList');
     list.innerHTML = '';
 
-    // 按時間排序
-    const sortedSlots = [...this.timeSlots].sort((a, b) => a.time.localeCompare(b.time));
+    // 獲取當前選擇的星期篩選
+    const weekdayFilter = document.getElementById('weekdayFilter');
+    const selectedWeekday = weekdayFilter ? weekdayFilter.value : 'all';
+
+    // 按時間排序並篩選
+    let filteredSlots = [...this.timeSlots];
+
+    // 根據星期篩選
+    if (selectedWeekday !== 'all') {
+        const dayNum = parseInt(selectedWeekday);
+        filteredSlots = filteredSlots.filter(slot => slot.weekdays.includes(dayNum));
+    }
+
+    const sortedSlots = filteredSlots.sort((a, b) => a.time.localeCompare(b.time));
+
+    // 顯示篩選結果提示
+    if (selectedWeekday !== 'all' && sortedSlots.length === 0) {
+        const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.cssText = 'text-align: center; padding: 40px 20px; color: var(--text-secondary);';
+        emptyMsg.innerHTML = `<p>📅 週${weekdayNames[parseInt(selectedWeekday)]}沒有設定任何時段</p>`;
+        list.appendChild(emptyMsg);
+        this.updateWeeklyScheduleView();
+        return;
+    }
 
     sortedSlots.forEach(slot => {
         const routine = this.routines[slot.routine];
@@ -700,20 +929,78 @@ App.updateScheduleView = function() {
 
         const card = document.createElement('div');
         card.className = 'time-slot-card';
-        card.innerHTML = `
-            <div class="slot-info">
-                <div class="slot-time">${slot.time}</div>
-                <div class="slot-name">${slot.name}</div>
-                <div class="slot-days">週${daysText} | ${routine ? routine.name : '未設定'}</div>
-            </div>
-            <div class="slot-actions">
-                <button class="btn-icon edit" data-id="${slot.id}">✏️</button>
-                <button class="btn-icon delete" data-id="${slot.id}">🗑️</button>
-            </div>
-        `;
 
-        card.querySelector('.edit').addEventListener('click', () => this.editTimeSlot(slot.id));
-        card.querySelector('.delete').addEventListener('click', () => this.deleteTimeSlot(slot.id));
+        // 選擇模式：顯示複選框
+        if (this.slotSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedSlots.has(slot.id);
+            card.innerHTML = `
+                <input type="checkbox" class="slot-checkbox" data-slot-id="${slot.id}" ${isChecked ? 'checked' : ''}>
+                <div class="slot-info" style="flex: 1;">
+                    <div class="slot-time">${slot.time}</div>
+                    <div class="slot-name">${slot.name}</div>
+                    <div class="slot-days">週${daysText} | ${routine ? routine.name : '未設定'}</div>
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.slot-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                if (e.target.checked) {
+                    this.selectedSlots.add(slot.id);
+                } else {
+                    this.selectedSlots.delete(slot.id);
+                }
+                this.updateSlotDeleteButtonState();
+            });
+
+            // 讓整個卡片可點擊
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', () => {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    this.selectedSlots.add(slot.id);
+                } else {
+                    this.selectedSlots.delete(slot.id);
+                }
+                this.updateSlotDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示流程下拉選單和操作按鈕
+            // 生成流程下拉選單
+            let routineSelectHTML = '<select class="slot-routine-select" data-slot-id="' + slot.id + '">';
+            routineSelectHTML += '<option value="">選擇流程...</option>';
+            Object.values(this.routines).forEach(r => {
+                const selected = r.id === slot.routine ? 'selected' : '';
+                routineSelectHTML += `<option value="${r.id}" ${selected}>${r.name}</option>`;
+            });
+            routineSelectHTML += '</select>';
+
+            card.innerHTML = `
+                <div class="slot-info">
+                    <div class="slot-time">${slot.time}</div>
+                    <div class="slot-name">${slot.name}</div>
+                    <div class="slot-days">週${daysText}</div>
+                    <div class="slot-routine-wrapper">
+                        ${routineSelectHTML}
+                    </div>
+                </div>
+                <div class="slot-actions">
+                    <button class="btn-icon edit" data-id="${slot.id}">✏️</button>
+                    <button class="btn-icon delete" data-id="${slot.id}">🗑️</button>
+                </div>
+            `;
+
+            // 添加下拉選單變更事件
+            const selectElement = card.querySelector('.slot-routine-select');
+            selectElement.addEventListener('change', (e) => {
+                this.updateSlotRoutine(slot.id, e.target.value);
+            });
+
+            card.querySelector('.edit').addEventListener('click', () => this.editTimeSlot(slot.id));
+            card.querySelector('.delete').addEventListener('click', () => this.deleteTimeSlot(slot.id));
+        }
 
         list.appendChild(card);
     });
@@ -838,21 +1125,473 @@ App.deleteTimeSlot = function(slotId) {
     }
 };
 
+// === 時段批量選擇功能 ===
+
+App.toggleSlotSelectMode = function() {
+    this.slotSelectMode = !this.slotSelectMode;
+    this.selectedSlots.clear();
+
+    const toggleBtn = document.getElementById('toggleSlotSelectModeBtn');
+    const batchActions = document.getElementById('slotBatchActions');
+
+    if (this.slotSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateScheduleView();
+};
+
+App.selectAllSlots = function() {
+    const checkboxes = document.querySelectorAll('.slot-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedSlots.delete(checkbox.dataset.slotId);
+        });
+        document.getElementById('selectAllSlotsBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedSlots.add(checkbox.dataset.slotId);
+        });
+        document.getElementById('selectAllSlotsBtn').textContent = '取消全選';
+    }
+
+    this.updateSlotDeleteButtonState();
+};
+
+App.updateSlotDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedSlotsBtn');
+    const selectAllBtn = document.getElementById('selectAllSlotsBtn');
+    const checkboxes = document.querySelectorAll('.slot-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedSlots.size === 0;
+    deleteBtn.textContent = this.selectedSlots.size > 0
+        ? `刪除選中 (${this.selectedSlots.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedSlots = function() {
+    if (this.selectedSlots.size === 0) return;
+
+    const count = this.selectedSlots.size;
+    if (!confirm(`確定要刪除 ${count} 個時段嗎？`)) {
+        return;
+    }
+
+    // 刪除選中的時段
+    this.timeSlots = this.timeSlots.filter(slot => !this.selectedSlots.has(slot.id));
+
+    this.selectedSlots.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateScheduleView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 個時段！`);
+
+    // 離開選擇模式
+    this.cancelSlotSelectMode();
+};
+
+App.cancelSlotSelectMode = function() {
+    this.slotSelectMode = false;
+    this.selectedSlots.clear();
+
+    document.getElementById('toggleSlotSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleSlotSelectModeBtn').style.background = '';
+    document.getElementById('slotBatchActions').style.display = 'none';
+
+    this.updateScheduleView();
+};
+
+App.showBatchEditSlotModal = function() {
+    if (this.selectedSlots.size === 0) {
+        alert('請先選擇要修改的時段！');
+        return;
+    }
+
+    const modal = document.getElementById('batchEditSlotModal');
+    document.getElementById('batchEditCount').textContent = this.selectedSlots.size;
+
+    // 填充流程選項
+    const routineSelect = document.getElementById('batchEditRoutine');
+    routineSelect.innerHTML = '<option value="">選擇流程...</option>';
+    Object.values(this.routines).forEach(routine => {
+        routineSelect.innerHTML += `<option value="${routine.id}">${routine.name}</option>`;
+    });
+
+    // 重置表單
+    document.getElementById('batchEditTimeCheck').checked = false;
+    document.getElementById('batchEditTime').disabled = true;
+    document.getElementById('batchEditTime').value = '';
+
+    document.getElementById('batchEditRoutineCheck').checked = false;
+    document.getElementById('batchEditRoutine').disabled = true;
+    document.getElementById('batchEditRoutine').value = '';
+
+    document.getElementById('batchEditWeekdaysCheck').checked = false;
+    document.querySelectorAll('.batch-weekday').forEach(input => {
+        input.disabled = true;
+        input.checked = false;
+    });
+
+    modal.classList.add('active');
+};
+
+App.applyBatchEditSlots = function() {
+    const editTime = document.getElementById('batchEditTimeCheck').checked;
+    const editRoutine = document.getElementById('batchEditRoutineCheck').checked;
+    const editWeekdays = document.getElementById('batchEditWeekdaysCheck').checked;
+
+    if (!editTime && !editRoutine && !editWeekdays) {
+        alert('請至少選擇一項要修改的內容！');
+        return;
+    }
+
+    let count = 0;
+    this.selectedSlots.forEach(slotId => {
+        const slot = this.timeSlots.find(s => s.id === slotId);
+        if (slot) {
+            if (editTime) {
+                const newTime = document.getElementById('batchEditTime').value;
+                if (newTime) {
+                    slot.time = newTime;
+                }
+            }
+
+            if (editRoutine) {
+                const newRoutine = document.getElementById('batchEditRoutine').value;
+                if (newRoutine) {
+                    slot.routine = newRoutine;
+                }
+            }
+
+            if (editWeekdays) {
+                const weekdays = [];
+                document.querySelectorAll('.batch-weekday:checked').forEach(input => {
+                    weekdays.push(parseInt(input.value));
+                });
+                if (weekdays.length > 0) {
+                    slot.weekdays = weekdays;
+                }
+            }
+
+            count++;
+        }
+    });
+
+    this.saveData();
+    this.updateScheduleView();
+    this.updateTodayView();
+    this.updateWeeklyScheduleView();
+
+    document.getElementById('batchEditSlotModal').classList.remove('active');
+    alert(`✅ 已成功修改 ${count} 個時段！`);
+
+    // 離開選擇模式
+    this.cancelSlotSelectMode();
+};
+
+App.updateSlotRoutine = function(slotId, routineId) {
+    const slot = this.timeSlots.find(s => s.id === slotId);
+    if (slot) {
+        slot.routine = routineId;
+        this.saveData();
+        this.updateTodayView();
+        this.updateWeeklyScheduleView();
+    }
+};
+
+// === 流程管理功能 ===
+
+App.updateRoutinesView = function() {
+    const list = document.getElementById('routinesList');
+    list.innerHTML = '';
+
+    const routines = Object.values(this.routines);
+    if (routines.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無保養流程<br>使用「AI 智能建議」自動生成流程</div>';
+        return;
+    }
+
+    routines.forEach(routine => {
+        const card = document.createElement('div');
+        card.className = 'routine-card';
+
+        // 選擇模式：顯示複選框
+        if (this.routineSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedRoutines.has(routine.id);
+            card.innerHTML = `
+                <input type="checkbox" class="routine-checkbox" data-routine-id="${routine.id}" ${isChecked ? 'checked' : ''}>
+                <div class="routine-content" style="flex: 1;">
+                    <div class="routine-name">${routine.name}</div>
+                    <div class="routine-type">${this.getRoutineTypeName(routine.type)}</div>
+                    <div class="routine-steps-count">${routine.steps.length} 個步驟</div>
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.routine-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                if (e.target.checked) {
+                    this.selectedRoutines.add(routine.id);
+                } else {
+                    this.selectedRoutines.delete(routine.id);
+                }
+                this.updateRoutineDeleteButtonState();
+            });
+
+            // 讓整個卡片可點擊
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', () => {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    this.selectedRoutines.add(routine.id);
+                } else {
+                    this.selectedRoutines.delete(routine.id);
+                }
+                this.updateRoutineDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示流程詳情
+            let stepsHTML = '<ul class="routine-steps-list">';
+            routine.steps.forEach((step, index) => {
+                stepsHTML += `<li>${index + 1}. ${step.text}${step.notes ? ' <span class="step-hint">(' + step.notes + ')</span>' : ''}</li>`;
+            });
+            stepsHTML += '</ul>';
+
+            card.innerHTML = `
+                <div class="routine-header-row">
+                    <div class="routine-name">${routine.name}</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div class="routine-type-badge">${this.getRoutineTypeName(routine.type)}</div>
+                        <button class="btn-icon" onclick="App.editRoutine('${routine.id}')" title="編輯流程">✏️</button>
+                    </div>
+                </div>
+                <div class="routine-meta">${routine.steps.length} 個步驟${routine.warnings ? ' · ' + routine.warnings.length + ' 個注意事項' : ''}</div>
+                ${stepsHTML}
+                ${routine.warnings && routine.warnings.length > 0 ? `
+                    <div class="routine-warnings">
+                        <div class="warning-title">⚠️ 注意事項</div>
+                        ${routine.warnings.map(w => `<div class="warning-item">• ${w}</div>`).join('')}
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        list.appendChild(card);
+    });
+};
+
+App.getRoutineTypeName = function(type) {
+    const names = {
+        'morning-regular': '一般早晨',
+        'morning-bha': '水楊酸早晨',
+        'sunscreen': '出門防曬',
+        'night-simple': '夜間保養',
+        'night-mask-bright': '亮白面膜',
+        'night-mask-repair': '修護面膜',
+        'night-mask-calm': '舒緩面膜',
+        'morning': '早晨保養',
+        'night': '夜間保養',
+        'custom': '自訂流程'
+    };
+    return names[type] || type;
+};
+
+App.toggleRoutineSelectMode = function() {
+    this.routineSelectMode = !this.routineSelectMode;
+    this.selectedRoutines.clear();
+
+    const toggleBtn = document.getElementById('toggleRoutineSelectModeBtn');
+    const batchActions = document.getElementById('routineBatchActions');
+
+    if (this.routineSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateRoutinesView();
+};
+
+App.selectAllRoutines = function() {
+    const checkboxes = document.querySelectorAll('.routine-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedRoutines.delete(checkbox.dataset.routineId);
+        });
+        document.getElementById('selectAllRoutinesBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedRoutines.add(checkbox.dataset.routineId);
+        });
+        document.getElementById('selectAllRoutinesBtn').textContent = '取消全選';
+    }
+
+    this.updateRoutineDeleteButtonState();
+};
+
+App.updateRoutineDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedRoutinesBtn');
+    const selectAllBtn = document.getElementById('selectAllRoutinesBtn');
+    const checkboxes = document.querySelectorAll('.routine-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedRoutines.size === 0;
+    deleteBtn.textContent = this.selectedRoutines.size > 0
+        ? `刪除選中 (${this.selectedRoutines.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedRoutines = function() {
+    if (this.selectedRoutines.size === 0) return;
+
+    const count = this.selectedRoutines.size;
+    if (!confirm(`確定要刪除 ${count} 個流程嗎？\n\n注意：使用這些流程的時段將變為「未設定」狀態。`)) {
+        return;
+    }
+
+    // 刪除選中的流程
+    this.selectedRoutines.forEach(routineId => {
+        delete this.routines[routineId];
+
+        // 將使用此流程的時段設為未設定
+        this.timeSlots.forEach(slot => {
+            if (slot.routine === routineId) {
+                slot.routine = '';
+            }
+        });
+    });
+
+    this.selectedRoutines.clear();
+    this.saveData();
+
+    // 更新所有視圖
+    this.updateRoutinesView();
+    this.updateScheduleView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 個流程！`);
+
+    // 離開選擇模式
+    this.cancelRoutineSelectMode();
+};
+
+App.cancelRoutineSelectMode = function() {
+    this.routineSelectMode = false;
+    this.selectedRoutines.clear();
+
+    document.getElementById('toggleRoutineSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleRoutineSelectModeBtn').style.background = '';
+    document.getElementById('routineBatchActions').style.display = 'none';
+
+    this.updateRoutinesView();
+};
+
 App.updateProductsView = function() {
     const grid = document.getElementById('productsList');
     grid.innerHTML = '';
 
-    Object.values(this.products).forEach(product => {
+    const products = Object.values(this.products);
+
+    if (products.length === 0) {
+        grid.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無產品<br>點擊「新增」按鈕來添加產品</div>';
+        return;
+    }
+
+    products.forEach(product => {
         const card = document.createElement('div');
         card.className = 'product-card';
-        card.innerHTML = `
-            <div class="product-icon">${product.icon || '🧴'}</div>
-            <div class="product-name">${product.name}</div>
-            <div class="product-type">${this.getProductTypeName(product.type)}</div>
-            ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
-        `;
 
-        card.addEventListener('click', () => this.showProductDetail(product.id));
+        // 選擇模式：顯示複選框
+        if (this.productSelectMode) {
+            card.classList.add('select-mode');
+            const isChecked = this.selectedProducts.has(product.id);
+            card.innerHTML = `
+                <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" ${isChecked ? 'checked' : ''}>
+                <div class="product-content" style="flex: 1;">
+                    <div class="product-icon">${product.icon || '🧴'}</div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-type">${this.getProductTypeName(product.type)}</div>
+                    ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
+                </div>
+            `;
+
+            // 添加複選框事件
+            const checkbox = card.querySelector('.product-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                if (e.target.checked) {
+                    this.selectedProducts.add(product.id);
+                } else {
+                    this.selectedProducts.delete(product.id);
+                }
+                this.updateProductDeleteButtonState();
+            });
+
+            // 讓整個卡片可點擊
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', () => {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    this.selectedProducts.add(product.id);
+                } else {
+                    this.selectedProducts.delete(product.id);
+                }
+                this.updateProductDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示產品詳情和操作按鈕
+            card.innerHTML = `
+                <div class="product-icon">${product.icon || '🧴'}</div>
+                <div class="product-name">${product.name}</div>
+                <div class="product-type">${this.getProductTypeName(product.type)}</div>
+                ${product.frequency ? `<div class="product-stock">${product.frequency}</div>` : ''}
+                <div class="product-actions" style="margin-top: 10px;">
+                    <button class="btn-icon edit" data-id="${product.id}" style="margin-right: 5px;">✏️</button>
+                    <button class="btn-icon delete" data-id="${product.id}">🗑️</button>
+                </div>
+            `;
+
+            // 添加編輯按鈕事件
+            card.querySelector('.edit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showProductModal(product.id);
+            });
+
+            // 添加刪除按鈕事件
+            card.querySelector('.delete').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteProduct(product.id);
+            });
+        }
+
         grid.appendChild(card);
     });
 };
@@ -876,6 +1615,14 @@ App.showProductDetail = function(productId) {
     if (!product) return;
 
     alert(`${product.icon} ${product.name}\n\n使用方式：\n${product.usage || '無'}\n\n${product.frequency ? '使用頻率：' + product.frequency : ''}`);
+};
+
+App.deleteProduct = function(productId) {
+    if (confirm('確定要刪除此產品嗎？')) {
+        delete this.products[productId];
+        this.saveData();
+        this.updateProductsView();
+    }
 };
 
 App.showProductModal = function(productId = null) {
@@ -952,21 +1699,84 @@ App.updateHistoryView = function() {
         return;
     }
 
+    const today = new Date().toDateString();
+
     last30Days.forEach(record => {
         const date = new Date(record.date);
         const dateStr = date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const isToday = date.toDateString() === today;
+
+        // 生成完成度顯示
+        let statusText = '';
+        let statusClass = 'skipped';
+        if (record.completed) {
+            if (record.completionRate !== undefined) {
+                if (record.completionRate === 100) {
+                    statusText = `✓ ${record.completedSteps.length}/${record.totalSteps}`;
+                    statusClass = 'completed';
+                } else {
+                    statusText = `${record.completionRate}% (${record.completedSteps.length}/${record.totalSteps})`;
+                    statusClass = 'partial';
+                }
+            } else {
+                // 舊記錄沒有 completionRate，顯示為已完成
+                statusText = '✓ 已完成';
+                statusClass = 'completed';
+            }
+        } else {
+            statusText = '跳過';
+        }
 
         const item = document.createElement('div');
         item.className = 'history-item';
-        item.innerHTML = `
-            <div>
-                <div class="history-routine">${record.routineName}</div>
-                <div class="history-date">${dateStr}</div>
-            </div>
-            <span class="history-status ${record.completed ? 'completed' : 'skipped'}">
-                ${record.completed ? '✓ 已完成' : '跳過'}
-            </span>
-        `;
+
+        // 選擇模式：顯示複選框
+        if (this.selectMode) {
+            item.classList.add('select-mode');
+            const isChecked = this.selectedRecords.has(record.id);
+            item.innerHTML = `
+                <input type="checkbox" class="history-checkbox" data-record-id="${record.id}" ${isChecked ? 'checked' : ''}>
+                <div style="flex: 1;">
+                    <div class="history-routine">${record.routineName}</div>
+                    <div class="history-date">${dateStr}</div>
+                </div>
+                <span class="history-status ${statusClass}">
+                    ${statusText}
+                </span>
+            `;
+
+            // 添加複選框事件監聽器
+            const checkbox = item.querySelector('.history-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedRecords.add(record.id);
+                } else {
+                    this.selectedRecords.delete(record.id);
+                }
+                this.updateDeleteButtonState();
+            });
+        } else {
+            // 普通模式：顯示刪除按鈕（僅限當天）
+            item.innerHTML = `
+                <div style="flex: 1;">
+                    <div class="history-routine">${record.routineName}</div>
+                    <div class="history-date">${dateStr}</div>
+                </div>
+                <span class="history-status ${statusClass}">
+                    ${statusText}
+                </span>
+                ${isToday ? `<button class="btn-delete-record" data-record-id="${record.id}">🗑️</button>` : ''}
+            `;
+
+            // 添加刪除按鈕事件監聽器
+            if (isToday) {
+                const deleteBtn = item.querySelector('.btn-delete-record');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteHistoryRecord(record.id);
+                });
+            }
+        }
 
         historyList.appendChild(item);
     });
@@ -1011,13 +1821,111 @@ App.updateStats = function() {
     document.getElementById('totalRoutines').textContent = this.history.filter(r => r.completed).length;
 };
 
+// === 批量選擇功能 ===
+
+App.toggleSelectMode = function() {
+    this.selectMode = !this.selectMode;
+    this.selectedRecords.clear();
+
+    const toggleBtn = document.getElementById('toggleSelectModeBtn');
+    const batchActions = document.getElementById('batchActions');
+
+    if (this.selectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateHistoryView();
+};
+
+App.selectAllRecords = function() {
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        // 如果全選了，就全部取消
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedRecords.delete(checkbox.dataset.recordId);
+        });
+        document.getElementById('selectAllBtn').textContent = '全選';
+    } else {
+        // 否則全選
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedRecords.add(checkbox.dataset.recordId);
+        });
+        document.getElementById('selectAllBtn').textContent = '取消全選';
+    }
+
+    this.updateDeleteButtonState();
+};
+
+App.updateDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedRecords.size === 0;
+    deleteBtn.textContent = this.selectedRecords.size > 0
+        ? `刪除選中 (${this.selectedRecords.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedRecords = function() {
+    if (this.selectedRecords.size === 0) return;
+
+    const count = this.selectedRecords.size;
+    if (!confirm(`確定要刪除 ${count} 筆記錄嗎？刪除後對應的保養流程將重新開啟。`)) {
+        return;
+    }
+
+    // 刪除選中的記錄
+    this.selectedRecords.forEach(recordId => {
+        const index = this.history.findIndex(record => record.id === recordId);
+        if (index !== -1) {
+            this.history.splice(index, 1);
+        }
+    });
+
+    this.selectedRecords.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateHistoryView();
+    this.updateTodayView();
+
+    alert(`✅ 已刪除 ${count} 筆記錄！`);
+};
+
+App.cancelSelectMode = function() {
+    this.selectMode = false;
+    this.selectedRecords.clear();
+
+    document.getElementById('toggleSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleSelectModeBtn').style.background = '';
+    document.getElementById('batchActions').style.display = 'none';
+
+    this.updateHistoryView();
+};
+
 App.checkNotificationPermission = function() {
     if ('Notification' in window) {
         this.notificationPermission = Notification.permission === 'granted';
         const btn = document.getElementById('notificationBtn');
+        const testBtn = document.getElementById('testNotificationBtn');
         if (this.notificationPermission) {
             btn.textContent = '🔔 通知已啟用';
             btn.classList.add('enabled');
+            if (testBtn) testBtn.style.display = 'block';
         }
     }
 };
@@ -1028,69 +1936,137 @@ App.requestNotificationPermission = async function() {
         return;
     }
 
-    if (Notification.permission === 'granted') {
-        alert('通知權限已啟用！');
+    if (Notification.permission === 'granted' && await PushManager.isSubscribed()) {
+        alert('推送通知已啟用！即使關閉 App 也能收到提醒 🎉');
         return;
     }
 
-    const permission = await Notification.requestPermission();
-
-    if (permission === 'granted') {
-        this.notificationPermission = true;
+    try {
         const btn = document.getElementById('notificationBtn');
-        btn.textContent = '🔔 通知已啟用';
-        btn.classList.add('enabled');
+        btn.textContent = '⏳ 啟用中...';
+        btn.disabled = true;
 
-        // 顯示測試通知
+        // 訂閱推送服務
+        await PushManager.subscribe();
+
+        this.notificationPermission = true;
+        const testBtn = document.getElementById('testNotificationBtn');
+        btn.textContent = '🔔 推送已啟用';
+        btn.classList.add('enabled');
+        btn.disabled = false;
+
+        // 顯示測試通知按鈕
+        if (testBtn) testBtn.style.display = 'block';
+
+        // 顯示成功通知
         new Notification('保養提醒助手', {
-            body: '通知已成功啟用！我會準時提醒您保養 💚',
+            body: '推送通知已成功啟用！\n即使關閉 App 也能收到提醒 💜',
             icon: '/icon-192.png'
         });
 
         this.scheduleNotifications();
-    } else {
-        alert('請在設定中允許通知權限，才能收到提醒喔！');
+    } catch (error) {
+        console.error('Push subscription error:', error);
+        const btn = document.getElementById('notificationBtn');
+        btn.textContent = '🔔 啟用通知';
+        btn.disabled = false;
+        alert('啟用推送通知失敗：' + error.message + '\n\n您仍可使用本地通知，但需要保持 App 開啟。');
     }
+};
+
+App.sendTestNotification = function() {
+    if (!this.notificationPermission) {
+        alert('請先啟用通知權限！');
+        return;
+    }
+
+    // 發送測試通知
+    const testRoutine = Object.values(this.routines)[0];
+    const routineName = testRoutine ? testRoutine.name : '早晨保養流程';
+
+    new Notification('⏰ 測試通知', {
+        body: `這是一則測試通知！\n該執行「${routineName}」囉！`,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200],
+        tag: 'test-notification',
+        requireInteraction: false
+    });
+
+    alert('✅ 測試通知已發送！\n如果您看到通知，表示通知功能正常運作。');
 };
 
 App.scheduleNotifications = function() {
     if (!this.notificationPermission) return;
 
-    // 清除現有的通知計時器（簡化版本，實際需要更複雜的管理）
-    // 為每個時段設置通知
+    // 清除現有的檢查計時器
+    if (this.notificationInterval) {
+        clearInterval(this.notificationInterval);
+    }
+
+    // 每分鐘檢查一次是否需要發送通知
+    this.notificationInterval = setInterval(() => {
+        this.checkAndSendNotifications();
+    }, 60000); // 每分鐘檢查一次
+
+    // 立即執行一次檢查
+    this.checkAndSendNotifications();
+};
+
+App.checkAndSendNotifications = function() {
+    if (!this.notificationPermission) return;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const today = now.toDateString();
+
+    // 獲取今天已發送的通知記錄
+    const sentToday = JSON.parse(localStorage.getItem('sentNotifications') || '{}');
+    if (sentToday.date !== today) {
+        // 新的一天，清除記錄
+        localStorage.setItem('sentNotifications', JSON.stringify({ date: today, slots: [] }));
+        sentToday.date = today;
+        sentToday.slots = [];
+    }
+
+    // 檢查每個時段
     this.timeSlots.forEach(slot => {
         if (!slot.enabled) return;
+        if (!slot.weekdays.includes(currentDay)) return;
+        if (sentToday.slots && sentToday.slots.includes(slot.id)) return; // 今天已發送過此通知
 
         const routine = this.routines[slot.routine];
         if (!routine) return;
 
-        // 計算下次觸發時間
-        const now = new Date();
-        const [hours, minutes] = slot.time.split(':');
+        // 檢查是否到了通知時間（提前5分鐘通知）
+        const slotTime = slot.time;
+        const [slotHour, slotMinute] = slotTime.split(':').map(Number);
+        const notificationTime = new Date(now);
+        notificationTime.setHours(slotHour, slotMinute - 5, 0, 0);
 
-        slot.weekdays.forEach(weekday => {
-            const nextDate = new Date();
-            nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        const currentTimeMs = now.getTime();
+        const notificationTimeMs = notificationTime.getTime();
+        const slotTimeDate = new Date(now);
+        slotTimeDate.setHours(slotHour, slotMinute, 0, 0);
 
-            // 如果今天已經過了這個時間，找下一個符合的日期
-            let daysToAdd = (weekday - now.getDay() + 7) % 7;
-            if (daysToAdd === 0 && now.getTime() > nextDate.getTime()) {
-                daysToAdd = 7;
-            }
+        // 如果當前時間在通知時間和時段時間之間，發送通知
+        if (currentTimeMs >= notificationTimeMs && currentTimeMs <= slotTimeDate.getTime()) {
+            // 發送通知
+            new Notification(`⏰ ${slot.name}`, {
+                body: `該執行「${routine.name}」囉！`,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `slot-${slot.id}`,
+                requireInteraction: false,
+                vibrate: [200, 100, 200]
+            });
 
-            nextDate.setDate(nextDate.getDate() + daysToAdd);
-
-            // 註冊 Service Worker 通知（簡化版）
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'SCHEDULE_NOTIFICATION',
-                    time: nextDate.toISOString(),
-                    title: slot.name,
-                    body: routine.name,
-                    routineId: routine.id
-                });
-            }
-        });
+            // 記錄已發送
+            if (!sentToday.slots) sentToday.slots = [];
+            sentToday.slots.push(slot.id);
+            localStorage.setItem('sentNotifications', JSON.stringify(sentToday));
+        }
     });
 };
 
@@ -1542,6 +2518,605 @@ App.applySuggestionReplace = function() {
     alert('✅ 已清除舊流程並套用 AI 建議！');
 };
 
+// === 集章日曆功能 ===
+
+App.currentCalendarMonth = new Date();
+
+App.updateCalendarView = function(date = this.currentCalendarMonth) {
+    this.currentCalendarMonth = date;
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    // 更新月份標題
+    const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    document.getElementById('calendarMonth').textContent = `${year}年 ${monthNames[month]}`;
+
+    // 生成日曆網格
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    // 添加星期標題
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    weekdays.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+
+    // 獲取本月第一天和最後一天
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const firstDayWeekday = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    // 獲取上個月的最後幾天
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+    // 今天的日期
+    const today = new Date();
+    const todayStr = today.toDateString();
+
+    // 填充上個月的日期
+    for (let i = firstDayWeekday - 1; i >= 0; i--) {
+        const dayNum = prevMonthLastDay - i;
+        const dayDate = new Date(year, month - 1, dayNum);
+        this.createCalendarDay(grid, dayNum, dayDate, true);
+    }
+
+    // 填充本月的日期
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayDate = new Date(year, month, day);
+        this.createCalendarDay(grid, day, dayDate, false, dayDate.toDateString() === todayStr);
+    }
+
+    // 填充下個月的日期（湊滿6週）
+    const totalCells = grid.children.length - 7; // 減去星期標題
+    const remainingCells = (6 * 7) - totalCells;
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayDate = new Date(year, month + 1, day);
+        this.createCalendarDay(grid, day, dayDate, true);
+    }
+
+    // 更新月統計
+    this.updateMonthStats(year, month);
+};
+
+App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = false) {
+    const dateStr = date.toDateString();
+
+    // 獲取當天的所有完成記錄
+    const dayRecords = this.history.filter(record => {
+        const recordDate = new Date(record.date).toDateString();
+        return recordDate === dateStr && record.completed;
+    });
+
+    // 獲取當天應該有的時段數量
+    const weekday = date.getDay();
+    const expectedSlots = this.timeSlots.filter(slot =>
+        slot.enabled && slot.weekdays.includes(weekday)
+    );
+
+    const completedCount = dayRecords.length;
+    const totalCount = expectedSlots.length;
+    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'calendar-day';
+
+    if (isOtherMonth) {
+        dayDiv.classList.add('other-month');
+    }
+
+    if (isToday) {
+        dayDiv.classList.add('today');
+    }
+
+    if (completedCount > 0) {
+        if (completionRate === 100) {
+            dayDiv.classList.add('completed');
+        } else {
+            dayDiv.classList.add('partial');
+        }
+    }
+
+    let dayHTML = `<div class="day-number">${dayNum}</div>`;
+
+    if (completedCount > 0) {
+        if (completionRate === 100) {
+            dayHTML += `<div class="day-icon">🐾</div>`;
+        } else {
+            dayHTML += `<div class="day-completion">${completionRate}%</div>`;
+        }
+    }
+
+    dayDiv.innerHTML = dayHTML;
+
+    // 點擊顯示詳情
+    dayDiv.addEventListener('click', () => {
+        if (dayRecords.length > 0) {
+            this.showDayDetail(date, dayRecords, expectedSlots.length);
+        }
+    });
+
+    grid.appendChild(dayDiv);
+};
+
+App.showDayDetail = function(date, records, totalSlots) {
+    const dateStr = date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+    const completionRate = totalSlots > 0 ? Math.round((records.length / totalSlots) * 100) : 0;
+
+    let details = `📅 ${dateStr}\n\n`;
+    details += `完成度：${records.length}/${totalSlots} (${completionRate}%)\n\n`;
+    details += `完成的流程：\n`;
+    records.forEach(record => {
+        const time = new Date(record.date).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        details += `✓ ${time} - ${record.routineName}\n`;
+    });
+
+    alert(details);
+};
+
+App.updateMonthStats = function(year, month) {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let perfectDays = 0;
+    let totalCompletion = 0;
+    let daysWithSlots = 0;
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(year, month, day);
+        const dateStr = date.toDateString();
+        const weekday = date.getDay();
+
+        // 獲取當天應有的時段
+        const expectedSlots = this.timeSlots.filter(slot =>
+            slot.enabled && slot.weekdays.includes(weekday)
+        );
+
+        if (expectedSlots.length === 0) continue;
+
+        daysWithSlots++;
+
+        // 獲取當天完成的記錄
+        const completedRecords = this.history.filter(record => {
+            const recordDate = new Date(record.date).toDateString();
+            return recordDate === dateStr && record.completed;
+        });
+
+        const completionRate = (completedRecords.length / expectedSlots.length) * 100;
+        totalCompletion += completionRate;
+
+        if (completionRate === 100) {
+            perfectDays++;
+        }
+    }
+
+    const avgCompletion = daysWithSlots > 0 ? Math.round(totalCompletion / daysWithSlots) : 0;
+
+    document.getElementById('monthPerfectDays').textContent = perfectDays;
+    document.getElementById('monthCompletionRate').textContent = avgCompletion + '%';
+};
+
+App.changeMonth = function(offset) {
+    const newDate = new Date(this.currentCalendarMonth);
+    newDate.setMonth(newDate.getMonth() + offset);
+    this.updateCalendarView(newDate);
+};
+
+// === 產品批量選擇功能 ===
+
+App.toggleProductSelectMode = function() {
+    this.productSelectMode = !this.productSelectMode;
+    this.selectedProducts.clear();
+
+    const toggleBtn = document.getElementById('toggleProductSelectModeBtn');
+    const batchActions = document.getElementById('productBatchActions');
+
+    if (this.productSelectMode) {
+        toggleBtn.textContent = '取消選擇';
+        toggleBtn.style.background = '#FF9800';
+        batchActions.style.display = 'flex';
+    } else {
+        toggleBtn.textContent = '選擇';
+        toggleBtn.style.background = '';
+        batchActions.style.display = 'none';
+    }
+
+    this.updateProductsView();
+};
+
+App.selectAllProducts = function() {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    if (allChecked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            this.selectedProducts.delete(checkbox.dataset.productId);
+        });
+        document.getElementById('selectAllProductsBtn').textContent = '全選';
+    } else {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedProducts.add(checkbox.dataset.productId);
+        });
+        document.getElementById('selectAllProductsBtn').textContent = '取消全選';
+    }
+
+    this.updateProductDeleteButtonState();
+};
+
+App.updateProductDeleteButtonState = function() {
+    const deleteBtn = document.getElementById('deleteSelectedProductsBtn');
+    const selectAllBtn = document.getElementById('selectAllProductsBtn');
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    deleteBtn.disabled = this.selectedProducts.size === 0;
+    deleteBtn.textContent = this.selectedProducts.size > 0
+        ? `刪除選中 (${this.selectedProducts.size})`
+        : '刪除選中';
+
+    selectAllBtn.textContent = allChecked ? '取消全選' : '全選';
+};
+
+App.deleteSelectedProducts = function() {
+    if (this.selectedProducts.size === 0) return;
+
+    const count = this.selectedProducts.size;
+    if (!confirm(`確定要刪除 ${count} 個產品嗎？`)) {
+        return;
+    }
+
+    // 刪除選中的產品
+    this.selectedProducts.forEach(productId => {
+        delete this.products[productId];
+    });
+
+    this.selectedProducts.clear();
+    this.saveData();
+
+    // 更新視圖
+    this.updateProductsView();
+
+    alert(`✅ 已刪除 ${count} 個產品！`);
+
+    // 離開選擇模式
+    this.cancelProductSelectMode();
+};
+
+App.cancelProductSelectMode = function() {
+    this.productSelectMode = false;
+    this.selectedProducts.clear();
+
+    document.getElementById('toggleProductSelectModeBtn').textContent = '選擇';
+    document.getElementById('toggleProductSelectModeBtn').style.background = '';
+    document.getElementById('productBatchActions').style.display = 'none';
+
+    this.updateProductsView();
+};
+
+// === 提醒管理功能 ===
+
+App.updateRemindersView = function() {
+    const list = document.getElementById('remindersList');
+    list.innerHTML = '';
+
+    if (this.reminders.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">尚無提醒<br>點擊「新增提醒」建立您的第一個提醒</div>';
+        return;
+    }
+
+    // 按時間排序
+    const sortedReminders = [...this.reminders].sort((a, b) => a.time.localeCompare(b.time));
+
+    sortedReminders.forEach(reminder => {
+        const advanceText = reminder.advanceMinutes > 0
+            ? ` <span style="color: var(--warning-color); font-size: 12px;">(提前 ${reminder.advanceMinutes} 分鐘)</span>`
+            : '';
+
+        let scheduleText = '';
+        if (reminder.isOneTime) {
+            // 一次性提醒
+            const dateObj = new Date(reminder.date + 'T00:00:00');
+            const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+            scheduleText = `📅 ${dateStr}`;
+        } else {
+            // 重複提醒
+            const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
+            const daysText = (reminder.weekdays || []).map(d => weekdayNames[d]).join('、');
+            scheduleText = `週${daysText}`;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'reminder-card';
+        card.innerHTML = `
+            <div class="reminder-info">
+                <div class="reminder-title">${reminder.title}</div>
+                <div class="reminder-content">${reminder.content || ''}</div>
+                <div class="reminder-time">⏰ ${reminder.time}${advanceText}</div>
+                <div class="reminder-days">${scheduleText}</div>
+            </div>
+            <div class="reminder-actions">
+                <button class="btn-icon edit" data-id="${reminder.id}">✏️</button>
+                <button class="btn-icon delete" data-id="${reminder.id}">🗑️</button>
+            </div>
+        `;
+
+        card.querySelector('.edit').addEventListener('click', () => this.editReminder(reminder.id));
+        card.querySelector('.delete').addEventListener('click', () => this.deleteReminder(reminder.id));
+
+        list.appendChild(card);
+    });
+};
+
+App.showReminderModal = function(reminderId = null) {
+    this.editingReminderId = reminderId;
+    const modal = document.getElementById('reminderModal');
+
+    if (reminderId) {
+        const reminder = this.reminders.find(r => r.id === reminderId);
+        if (reminder) {
+            document.getElementById('reminderTitle').value = reminder.title;
+            document.getElementById('reminderContent').value = reminder.content || '';
+            document.getElementById('reminderTime').value = reminder.time;
+            document.getElementById('reminderAdvanceMinutes').value = reminder.advanceMinutes || 0;
+
+            // 設定提醒類型
+            if (reminder.isOneTime) {
+                document.getElementById('reminderTypeOneTime').checked = true;
+                document.getElementById('reminderDate').value = reminder.date || '';
+                document.getElementById('reminderDateGroup').style.display = 'block';
+                document.getElementById('reminderWeekdaysGroup').style.display = 'none';
+            } else {
+                document.getElementById('reminderTypeRecurring').checked = true;
+                document.getElementById('reminderDateGroup').style.display = 'none';
+                document.getElementById('reminderWeekdaysGroup').style.display = 'block';
+                // 設定星期選擇
+                document.querySelectorAll('.reminder-weekday').forEach(input => {
+                    input.checked = (reminder.weekdays || []).includes(parseInt(input.value));
+                });
+            }
+        }
+    } else {
+        document.getElementById('reminderTitle').value = '';
+        document.getElementById('reminderContent').value = '';
+        document.getElementById('reminderTime').value = '';
+        document.getElementById('reminderDate').value = '';
+        document.getElementById('reminderAdvanceMinutes').value = 0;
+        document.getElementById('reminderTypeRecurring').checked = true;
+        document.getElementById('reminderDateGroup').style.display = 'none';
+        document.getElementById('reminderWeekdaysGroup').style.display = 'block';
+        document.querySelectorAll('.reminder-weekday').forEach(input => {
+            input.checked = false;
+        });
+    }
+
+    modal.classList.add('active');
+};
+
+App.editReminder = function(id) {
+    this.showReminderModal(id);
+};
+
+App.saveReminder = function() {
+    const title = document.getElementById('reminderTitle').value.trim();
+    const content = document.getElementById('reminderContent').value.trim();
+    const time = document.getElementById('reminderTime').value;
+    const advanceMinutes = parseInt(document.getElementById('reminderAdvanceMinutes').value) || 0;
+    const isOneTime = document.getElementById('reminderTypeOneTime').checked;
+
+    if (!title || !time) {
+        alert('請填寫提醒標題和時間！');
+        return;
+    }
+
+    let date = null;
+    let weekdays = [];
+
+    if (isOneTime) {
+        // 一次性提醒
+        date = document.getElementById('reminderDate').value;
+        if (!date) {
+            alert('請選擇提醒日期！');
+            return;
+        }
+    } else {
+        // 重複提醒
+        document.querySelectorAll('.reminder-weekday:checked').forEach(input => {
+            weekdays.push(parseInt(input.value));
+        });
+
+        if (weekdays.length === 0) {
+            alert('請至少選擇一個重複日期！');
+            return;
+        }
+    }
+
+    if (this.editingReminderId) {
+        // 編輯現有提醒
+        const reminder = this.reminders.find(r => r.id === this.editingReminderId);
+        if (reminder) {
+            reminder.title = title;
+            reminder.content = content;
+            reminder.time = time;
+            reminder.isOneTime = isOneTime;
+            reminder.date = date;
+            reminder.weekdays = weekdays;
+            reminder.advanceMinutes = advanceMinutes;
+        }
+    } else {
+        // 新增提醒
+        const newReminder = {
+            id: 'reminder-' + Date.now(),
+            title,
+            content,
+            time,
+            isOneTime,
+            date,
+            weekdays,
+            advanceMinutes,
+            enabled: true
+        };
+        this.reminders.push(newReminder);
+    }
+
+    this.saveData();
+    this.updateRemindersView();
+
+    document.getElementById('reminderModal').classList.remove('active');
+    this.editingReminderId = null;
+};
+
+App.deleteReminder = function(id) {
+    if (!confirm('確定要刪除此提醒嗎？')) return;
+
+    this.reminders = this.reminders.filter(r => r.id !== id);
+    this.saveData();
+    this.updateRemindersView();
+};
+
+App.editRoutine = function(routineId) {
+    const routine = this.routines[routineId];
+    if (!routine) {
+        alert('找不到此流程');
+        return;
+    }
+
+    this.editingRoutineId = routineId;
+
+    // 設置流程名稱
+    document.getElementById('editRoutineName').value = routine.name;
+
+    // 渲染步驟列表
+    this.renderEditSteps();
+
+    // 顯示 modal
+    document.getElementById('editRoutineModal').classList.add('active');
+};
+
+App.renderEditSteps = function() {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    const stepsContainer = document.getElementById('editRoutineSteps');
+    stepsContainer.innerHTML = '';
+
+    routine.steps.forEach((step, index) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'edit-step-item';
+        stepDiv.style.cssText = 'margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f9f9f9; position: relative;';
+
+        stepDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: #333;">步驟 ${index + 1}</strong>
+                <button class="btn-icon delete-step-btn" data-step-index="${index}" style="color: #d32f2f;">🗑️</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">步驟描述</label>
+                <input type="text" class="step-text-input" data-step-index="${index}" value="${step.text}"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">備註（選填）</label>
+                <input type="text" class="step-notes-input" data-step-index="${index}" value="${step.notes || ''}"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                    placeholder="例如：溫和清潔，不要過度摩擦">
+            </div>
+        `;
+
+        // 添加刪除按鈕事件
+        setTimeout(() => {
+            const deleteBtn = stepDiv.querySelector('.delete-step-btn');
+            deleteBtn.addEventListener('click', () => this.deleteEditStep(index));
+        }, 0);
+
+        stepsContainer.appendChild(stepDiv);
+    });
+
+    // 添加"新增步驟"按鈕
+    const addBtnDiv = document.createElement('div');
+    addBtnDiv.style.cssText = 'margin-top: 15px; text-align: center;';
+    addBtnDiv.innerHTML = `
+        <button class="btn-primary" id="addStepBtn" style="padding: 10px 20px;">
+            ➕ 新增步驟
+        </button>
+    `;
+    stepsContainer.appendChild(addBtnDiv);
+
+    setTimeout(() => {
+        document.getElementById('addStepBtn').addEventListener('click', () => this.addEditStep());
+    }, 0);
+};
+
+App.deleteEditStep = function(stepIndex) {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    if (routine.steps.length <= 1) {
+        alert('至少需要保留一個步驟！');
+        return;
+    }
+
+    if (confirm(`確定要刪除步驟 ${stepIndex + 1}：${routine.steps[stepIndex].text}？`)) {
+        routine.steps.splice(stepIndex, 1);
+        this.renderEditSteps();
+    }
+};
+
+App.addEditStep = function() {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    routine.steps.push({
+        text: '新步驟',
+        notes: ''
+    });
+    this.renderEditSteps();
+};
+
+App.saveEditRoutine = function() {
+    const routine = this.routines[this.editingRoutineId];
+    if (!routine) return;
+
+    // 更新流程名稱
+    const newName = document.getElementById('editRoutineName').value.trim();
+    if (!newName) {
+        alert('請輸入流程名稱！');
+        return;
+    }
+    routine.name = newName;
+
+    // 收集所有步驟的文本和備註
+    const textInputs = document.querySelectorAll('.step-text-input');
+    const notesInputs = document.querySelectorAll('.step-notes-input');
+
+    textInputs.forEach((input, index) => {
+        const text = input.value.trim();
+        if (!text) {
+            alert(`步驟 ${index + 1} 的描述不能為空！`);
+            return;
+        }
+        routine.steps[index].text = text;
+    });
+
+    notesInputs.forEach((input, index) => {
+        routine.steps[index].notes = input.value.trim();
+    });
+
+    this.saveData();
+    this.updateRoutinesView();
+
+    // 關閉 modal
+    document.getElementById('editRoutineModal').classList.remove('active');
+    this.editingRoutineId = null;
+
+    alert('流程已更新！');
+};
+
 // 定期檢查通知（每分鐘）
 setInterval(() => {
     if (App.notificationPermission) {
@@ -1559,6 +3134,17 @@ setInterval(() => {
                         requireInteraction: true
                     });
                 }
+            }
+        });
+
+        // 檢查提醒
+        App.reminders.forEach(reminder => {
+            if (reminder.enabled && reminder.time === currentTime && reminder.weekdays.includes(weekday)) {
+                new Notification(reminder.title, {
+                    body: reminder.content || '提醒時間到了！',
+                    icon: '/icon-192.png',
+                    requireInteraction: true
+                });
             }
         });
     }
