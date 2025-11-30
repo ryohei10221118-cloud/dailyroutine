@@ -454,22 +454,65 @@
             </div>
             <div class="modal-body">
                 <div class="smart-suggest-intro">
-                    <p>📝 請告訴我您擁有的所有保養品，我會為您分析並生成最佳保養流程！</p>
+                    <p>📝 請選擇建議方式：自動生成或導入其他 AI 的建議</p>
                 </div>
 
+                <!-- 建議方式選擇 -->
                 <div class="form-group">
-                    <label>您的保養品清單</label>
-                    <textarea id="productsInput" rows="8" placeholder="例如：&#10;洗面乳&#10;綠大罐 茶樹 Toner Pad&#10;紫色 水楊酸 Pad&#10;白綠瓶 Ssuk Latte Cream Toner&#10;綠滴管 積雪草精華&#10;乳液&#10;防曬 SPF42&#10;Mediheal 玫瑰面膜&#10;...等等（每行一個產品）"></textarea>
+                    <label>建議方式</label>
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                        <label>
+                            <input type="radio" name="suggestMode" value="generate" id="suggestModeGenerate" checked>
+                            自動生成建議
+                        </label>
+                        <label>
+                            <input type="radio" name="suggestMode" value="import" id="suggestModeImport">
+                            導入 AI 建議
+                        </label>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label>您的作息時間（選填）</label>
-                    <textarea id="scheduleInput" rows="3" placeholder="例如：&#10;晚上 8:30 起床&#10;早上 7:30 出門上班&#10;晚上 10-12點 睡前"></textarea>
+                <!-- 自動生成區域 -->
+                <div id="generateSuggestArea">
+                    <div class="form-group">
+                        <label>建議類型</label>
+                        <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                            <label>
+                                <input type="radio" name="suggestType" value="simple" id="suggestTypeSimple" checked>
+                                簡單建議（基本流程）
+                            </label>
+                            <label>
+                                <input type="radio" name="suggestType" value="weekly" id="suggestTypeWeekly">
+                                完整週計劃（每天不同）
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>您的保養品清單</label>
+                        <textarea id="productsInput" rows="8" placeholder="例如：&#10;洗面乳&#10;綠大罐 茶樹 Toner Pad&#10;紫色 水楊酸 Pad&#10;白綠瓶 Ssuk Latte Cream Toner&#10;綠滴管 積雪草精華&#10;乳液&#10;防曬 SPF42&#10;Mediheal 玫瑰面膜&#10;...等等（每行一個產品）"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>您的作息時間（選填）</label>
+                        <textarea id="scheduleInput" rows="3" placeholder="例如：&#10;晚上 8:30 起床&#10;早上 7:30 出門上班&#10;晚上 10-12點 睡前"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>肌膚狀況與需求（選填）</label>
+                        <textarea id="skinConcernsInput" rows="3" placeholder="例如：T字容易出油、兩頰敏感、有粉刺問題、希望美白..."></textarea>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label>肌膚狀況與需求（選填）</label>
-                    <textarea id="skinConcernsInput" rows="3" placeholder="例如：T字容易出油、兩頰敏感、有粉刺問題、希望美白..."></textarea>
+                <!-- 導入區域 -->
+                <div id="importSuggestArea" style="display: none;">
+                    <div class="form-group">
+                        <label>貼上 AI 建議的保養行程</label>
+                        <textarea id="importInput" rows="12" placeholder="請貼上其他 AI（如 ChatGPT、Claude）生成的保養建議...&#10;&#10;支持格式：&#10;1. 文字描述（會自動解析）&#10;2. JSON 格式"></textarea>
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-top: -10px; margin-bottom: 15px;">
+                        💡 提示：直接貼上 AI 生成的文字即可，系統會自動解析流程和時段
+                    </div>
                 </div>
 
                 <div class="smart-suggest-result" id="smartSuggestResult" style="display: none;">
@@ -480,6 +523,7 @@
             <div class="modal-footer">
                 <button class="btn-secondary modal-close">取消</button>
                 <button class="btn-primary" id="generateSuggestBtn">生成建議</button>
+                <button class="btn-primary" id="importSuggestBtn" style="display: none;">解析並導入</button>
                 <button class="btn-success" id="applySuggestBtn" style="display: none;">一鍵套用</button>
             </div>
         </div>

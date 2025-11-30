@@ -578,9 +578,24 @@ App.setupEventListeners = function() {
     // 智能建議
     document.getElementById('smartSuggestBtn')?.addEventListener('click', () => this.showSmartSuggestModal());
     document.getElementById('generateSuggestBtn')?.addEventListener('click', () => this.generateSmartSuggestion());
+    document.getElementById('importSuggestBtn')?.addEventListener('click', () => this.importSmartSuggestion());
     document.getElementById('applySuggestBtn')?.addEventListener('click', () => this.applySmartSuggestion());
     document.getElementById('mergeRoutinesBtn')?.addEventListener('click', () => this.applySuggestionMerge());
     document.getElementById('replaceRoutinesBtn')?.addEventListener('click', () => this.applySuggestionReplace());
+
+    // 智能建議模式切換
+    document.getElementById('suggestModeGenerate')?.addEventListener('change', () => {
+        document.getElementById('generateSuggestArea').style.display = 'block';
+        document.getElementById('importSuggestArea').style.display = 'none';
+        document.getElementById('generateSuggestBtn').style.display = 'inline-block';
+        document.getElementById('importSuggestBtn').style.display = 'none';
+    });
+    document.getElementById('suggestModeImport')?.addEventListener('change', () => {
+        document.getElementById('generateSuggestArea').style.display = 'none';
+        document.getElementById('importSuggestArea').style.display = 'block';
+        document.getElementById('generateSuggestBtn').style.display = 'none';
+        document.getElementById('importSuggestBtn').style.display = 'inline-block';
+    });
 
     // 日曆導航
     document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
@@ -2096,6 +2111,7 @@ App.generateSmartSuggestion = function() {
     const productsText = document.getElementById('productsInput').value.trim();
     const scheduleText = document.getElementById('scheduleInput').value.trim();
     const skinConcerns = document.getElementById('skinConcernsInput').value.trim();
+    const suggestType = document.querySelector('input[name="suggestType"]:checked')?.value || 'simple';
 
     if (!productsText) {
         alert('請至少輸入您的保養品清單');
@@ -2110,7 +2126,12 @@ App.generateSmartSuggestion = function() {
 
     // 模擬 AI 生成（實際應用中可以接入真實的 AI API）
     setTimeout(() => {
-        const suggestion = this.analyzeAndGenerateSuggestion(productsText, scheduleText, skinConcerns);
+        let suggestion;
+        if (suggestType === 'weekly') {
+            suggestion = this.analyzeAndGenerateWeeklySuggestion(productsText, scheduleText, skinConcerns);
+        } else {
+            suggestion = this.analyzeAndGenerateSuggestion(productsText, scheduleText, skinConcerns);
+        }
         this.smartSuggestion = suggestion;
 
         // 顯示結果
@@ -2445,6 +2466,300 @@ App.displaySuggestion = function(suggestion) {
 
         container.appendChild(routineDiv);
     });
+};
+
+// 生成完整週計劃
+App.analyzeAndGenerateWeeklySuggestion = function(productsText, scheduleText, skinConcerns) {
+    const products = productsText.split('\n').filter(p => p.trim()).map(p => p.trim());
+    const scheduleTimes = this.parseSchedule(scheduleText);
+    const categorizedProducts = this.categorizeProducts(products);
+
+    const routines = [];
+    const timeSlots = [];
+
+    // 週一到週日的流程（每天不同）
+    const weekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    const weekdayNums = [0, 1, 2, 3, 4, 5, 6];
+
+    weekdayNums.forEach((dayNum, index) => {
+        const dayName = weekdays[dayNum];
+
+        // 早上保養（每天不同的重點）
+        if (scheduleTimes.morning) {
+            const isSpecialDay = dayNum === 1 || dayNum === 4; // 週一、週四使用特殊產品
+            const morningSteps = this.buildDayMorningRoutine(categorizedProducts, skinConcerns, dayNum, isSpecialDay);
+
+            routines.push({
+                id: `ai-routine-morning-${dayNum}`,
+                name: `【AI建議】${dayName}早上保養`,
+                type: 'morning',
+                steps: morningSteps
+            });
+
+            timeSlots.push({
+                id: `ai-slot-morning-${dayNum}`,
+                name: `${dayName}早上保養`,
+                time: scheduleTimes.morning,
+                routine: `ai-routine-morning-${dayNum}`,
+                weekdays: [dayNum],
+                enabled: true
+            });
+        }
+
+        // 晚上保養（週期性使用特殊產品）
+        if (scheduleTimes.night) {
+            const isAcidDay = dayNum === 1 || dayNum === 4; // 週一、週四用酸類
+            const isMaskDay = dayNum === 3 || dayNum === 6; // 週三、週六敷面膜
+
+            const nightSteps = this.buildDayNightRoutine(categorizedProducts, skinConcerns, dayNum, isAcidDay, isMaskDay);
+
+            routines.push({
+                id: `ai-routine-night-${dayNum}`,
+                name: `【AI建議】${dayName}晚上保養`,
+                type: 'night',
+                steps: nightSteps
+            });
+
+            timeSlots.push({
+                id: `ai-slot-night-${dayNum}`,
+                name: `${dayName}晚上保養`,
+                time: scheduleTimes.night,
+                routine: `ai-routine-night-${dayNum}`,
+                weekdays: [dayNum],
+                enabled: true
+            });
+        }
+    });
+
+    return { routines, timeSlots, products: categorizedProducts };
+};
+
+// 為特定日期建立早上流程
+App.buildDayMorningRoutine = function(products, skinConcerns, dayNum, isSpecialDay) {
+    const steps = [];
+
+    // 基本清潔
+    if (products.cleanser.length > 0) {
+        steps.push({
+            text: '溫水洗臉',
+            notes: isSpecialDay ? '使用洗面乳深層清潔' : '只用溫水輕柔清潔',
+            product: products.cleanser[0]
+        });
+    }
+
+    // 特殊日使用化妝水或 Pad
+    if (isSpecialDay && (products.toner.length > 0 || products.pad.length > 0)) {
+        const product = products.pad.length > 0 ? products.pad[0] : products.toner[0];
+        steps.push({
+            text: '使用化妝水/Pad',
+            notes: '幫助後續吸收',
+            product: product
+        });
+    }
+
+    // 精華液
+    if (products.serum.length > 0) {
+        steps.push({
+            text: '塗抹精華液',
+            notes: '輕拍至吸收',
+            product: products.serum[0]
+        });
+    }
+
+    // 保濕
+    if (products.moisturizer.length > 0) {
+        steps.push({
+            text: '塗抹乳液/乳霜',
+            notes: '鎖住水分',
+            product: products.moisturizer[0]
+        });
+    }
+
+    // 防曬（工作日）
+    if (dayNum >= 1 && dayNum <= 5 && products.sunscreen.length > 0) {
+        steps.push({
+            text: '塗抹防曬',
+            notes: 'SPF 足量使用',
+            product: products.sunscreen[0]
+        });
+    }
+
+    return steps;
+};
+
+// 為特定日期建立晚上流程
+App.buildDayNightRoutine = function(products, skinConcerns, dayNum, isAcidDay, isMaskDay) {
+    const steps = [];
+
+    // 清潔
+    if (products.cleanser.length > 0) {
+        steps.push({
+            text: '洗面乳洗臉',
+            notes: '徹底清潔',
+            product: products.cleanser[0]
+        });
+    }
+
+    // 酸類日（週一、週四）
+    if (isAcidDay && products.pad.length > 0) {
+        steps.push({
+            text: '使用酸類 Pad',
+            notes: '去角質、改善粉刺',
+            product: products.pad[0]
+        });
+    } else if (!isMaskDay && products.toner.length > 0) {
+        // 非面膜日使用化妝水
+        steps.push({
+            text: '使用化妝水',
+            notes: '補水準備',
+            product: products.toner[0]
+        });
+    }
+
+    // 面膜日（週三、週六）
+    if (isMaskDay && products.mask.length > 0) {
+        steps.push({
+            text: '敷面膜',
+            notes: '15-20分鐘',
+            product: products.mask[0]
+        });
+    }
+
+    // 精華液
+    if (products.serum.length > 0) {
+        steps.push({
+            text: '塗抹精華液',
+            notes: '重點保養',
+            product: products.serum[0]
+        });
+    }
+
+    // 保濕
+    if (products.moisturizer.length > 0) {
+        steps.push({
+            text: '塗抹乳液/乳霜',
+            notes: '鎖住養分',
+            product: products.moisturizer[0]
+        });
+    }
+
+    return steps;
+};
+
+// 導入 AI 建議
+App.importSmartSuggestion = function() {
+    const importText = document.getElementById('importInput').value.trim();
+
+    if (!importText) {
+        alert('請貼上 AI 生成的保養建議');
+        return;
+    }
+
+    const btn = document.getElementById('importSuggestBtn');
+    btn.classList.add('generating');
+    btn.textContent = '解析中...';
+    btn.disabled = true;
+
+    setTimeout(() => {
+        try {
+            // 嘗試解析文本
+            const suggestion = this.parseImportedSuggestion(importText);
+
+            if (!suggestion || !suggestion.routines || suggestion.routines.length === 0) {
+                throw new Error('無法解析建議內容');
+            }
+
+            this.smartSuggestion = suggestion;
+            this.displaySuggestion(suggestion);
+
+            btn.classList.remove('generating');
+            btn.textContent = '解析並導入';
+            btn.disabled = false;
+
+            document.getElementById('smartSuggestResult').style.display = 'block';
+            document.getElementById('applySuggestBtn').style.display = 'inline-block';
+        } catch (error) {
+            btn.classList.remove('generating');
+            btn.textContent = '解析並導入';
+            btn.disabled = false;
+            alert('解析失敗：' + error.message + '\n\n請確認格式正確，或提供更詳細的描述');
+        }
+    }, 800);
+};
+
+// 解析導入的建議文本
+App.parseImportedSuggestion = function(text) {
+    // 先嘗試解析 JSON
+    try {
+        const json = JSON.parse(text);
+        if (json.routines && json.timeSlots) {
+            return json;
+        }
+    } catch (e) {
+        // 不是 JSON，繼續文本解析
+    }
+
+    // 文本解析邏輯
+    const routines = [];
+    const timeSlots = [];
+    let routineId = 0;
+
+    // 按行分割，尋找流程描述
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+    let currentRoutine = null;
+    let currentSteps = [];
+
+    lines.forEach((line, index) => {
+        // 檢測流程標題（包含時間或早/晚等關鍵字）
+        const timeMatch = line.match(/(\d{1,2}[:：]\d{2})|([早晚中午睡前起床出門])/);
+        const isTitle = line.includes('保養') || line.includes('流程') || timeMatch;
+
+        if (isTitle && (line.length < 50)) {
+            // 保存上一個流程
+            if (currentRoutine && currentSteps.length > 0) {
+                currentRoutine.steps = currentSteps;
+                routines.push(currentRoutine);
+            }
+
+            // 創建新流程
+            routineId++;
+            const time = timeMatch ? timeMatch[0].replace('：', ':') : '08:00';
+
+            currentRoutine = {
+                id: `imported-routine-${routineId}`,
+                name: line,
+                type: 'custom',
+                steps: []
+            };
+
+            currentSteps = [];
+
+            // 創建對應時段
+            timeSlots.push({
+                id: `imported-slot-${routineId}`,
+                name: line,
+                time: time.includes(':') ? time : '08:00',
+                routine: `imported-routine-${routineId}`,
+                weekdays: [0, 1, 2, 3, 4, 5, 6],
+                enabled: true
+            });
+        } else if (currentRoutine && line.length > 0) {
+            // 這是步驟描述
+            currentSteps.push({
+                text: line,
+                notes: ''
+            });
+        }
+    });
+
+    // 保存最後一個流程
+    if (currentRoutine && currentSteps.length > 0) {
+        currentRoutine.steps = currentSteps;
+        routines.push(currentRoutine);
+    }
+
+    return { routines, timeSlots, products: {} };
 };
 
 App.applySmartSuggestion = function() {
