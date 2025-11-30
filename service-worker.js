@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skincare-reminder-v2';
+const CACHE_NAME = 'skincare-reminder-2025-11-30-001';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -26,6 +26,9 @@ self.addEventListener('activate', event => {
           }
         })
       );
+    }).then(() => {
+      // 立即接管所有頁面
+      return self.clients.claim();
     })
   );
 });
@@ -73,6 +76,9 @@ self.addEventListener('message', event => {
   if (event.data.type === 'SCHEDULE_NOTIFICATION') {
     const { time, title, body, routineId } = event.data;
     scheduleNotification(time, title, body, routineId);
+  } else if (event.data.type === 'SKIP_WAITING') {
+    // 收到跳過等待的消息，立即激活新版本
+    self.skipWaiting();
   }
 });
 

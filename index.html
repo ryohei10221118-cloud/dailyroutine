@@ -697,19 +697,38 @@
                 font-size: 14px;
                 animation: slideDown 0.3s ease;
             `;
-            banner.innerHTML = `
-                <span>🎉 有新版本可用！</span>
-                <button onclick="location.reload()" style="
-                    background: white;
-                    color: #667eea;
-                    border: none;
-                    padding: 6px 16px;
-                    border-radius: 15px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    font-size: 13px;
-                ">立即更新</button>
+
+            const updateBtn = document.createElement('button');
+            updateBtn.textContent = '立即更新';
+            updateBtn.style.cssText = `
+                background: white;
+                color: #667eea;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 15px;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 13px;
             `;
+
+            updateBtn.addEventListener('click', async () => {
+                if (registration && registration.waiting) {
+                    // 向等待中的 Service Worker 發送跳過等待的消息
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+                    // 監聽 Service Worker 控制器變更
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        // 新的 Service Worker 已接管，重新載入頁面
+                        window.location.reload();
+                    });
+                } else {
+                    // 如果沒有等待中的 Service Worker，直接重新載入
+                    window.location.reload();
+                }
+            });
+
+            banner.innerHTML = '<span>🎉 有新版本可用！</span>';
+            banner.appendChild(updateBtn);
             document.body.appendChild(banner);
         }
 
