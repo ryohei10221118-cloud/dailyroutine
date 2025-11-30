@@ -507,7 +507,10 @@
                 <!-- 導入區域 -->
                 <div id="importSuggestArea" style="display: none;">
                     <div class="form-group">
-                        <label>貼上 AI 建議的保養行程</label>
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>貼上 AI 建議的保養行程</span>
+                            <button type="button" id="clearImportBtn" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 4px 8px;">🗑️ 清除</button>
+                        </label>
                         <textarea id="importInput" rows="12" placeholder="請貼上其他 AI（如 ChatGPT、Claude）生成的保養建議...&#10;&#10;支持格式：&#10;1. 文字描述（會自動解析）&#10;2. JSON 格式"></textarea>
                     </div>
                     <div style="font-size: 13px; color: #666; margin-top: -10px; margin-bottom: 15px;">

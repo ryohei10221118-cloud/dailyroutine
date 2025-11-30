@@ -597,6 +597,11 @@ App.setupEventListeners = function() {
         document.getElementById('importSuggestBtn').style.display = 'inline-block';
     });
 
+    // 清除導入輸入框
+    document.getElementById('clearImportBtn')?.addEventListener('click', () => {
+        document.getElementById('importInput').value = '';
+    });
+
     // 日曆導航
     document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
     document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
@@ -2698,7 +2703,12 @@ App.parseImportedSuggestion = function(text) {
             return json;
         }
 
-        // 格式2：週計劃格式 [{ day: "Monday", routines: [...] }, ...]
+        // 格式2：模板格式 { templates: [...], schedule: [...] }
+        if (json.templates && json.schedule) {
+            return this.parseTemplateJSON(json);
+        }
+
+        // 格式3：週計劃格式 [{ day: "Monday", routines: [...] }, ...]
         if (Array.isArray(json) && json.length > 0 && json[0].day && json[0].routines) {
             return this.parseWeeklyPlanJSON(json);
         }
@@ -2838,6 +2848,97 @@ App.parseWeeklyPlanJSON = function(weeklyData) {
     });
 
     console.log(`已解析週計劃：${routines.length} 個流程，${timeSlots.length} 個時段`);
+
+    return { routines, timeSlots, products: {} };
+};
+
+// 解析模板格式的 JSON
+App.parseTemplateJSON = function(templateData) {
+    const routines = [];
+    const timeSlots = [];
+
+    // 星期幾映射
+    const dayMap = {
+        'Monday': 1, '週一': 1,
+        'Tuesday': 2, '週二': 2,
+        'Wednesday': 3, '週三': 3,
+        'Thursday': 4, '週四': 4,
+        'Friday': 5, '週五': 5,
+        'Saturday': 6, '週六': 6,
+        'Sunday': 0, '週日': 0
+    };
+
+    // 先建立模板映射
+    const templateMap = {};
+    if (templateData.templates) {
+        templateData.templates.forEach(template => {
+            templateMap[template.id] = template;
+        });
+    }
+
+    let routineId = 0;
+
+    // 處理排程
+    if (templateData.schedule) {
+        templateData.schedule.forEach(dayData => {
+            const dayName = dayData.day;
+            const dayNameZh = dayData.weekday_zh || '';
+            const weekdayNum = dayMap[dayName] !== undefined ? dayMap[dayName] : dayMap[dayNameZh];
+
+            if (weekdayNum === undefined) {
+                console.warn('無法識別的星期:', dayName, dayNameZh);
+                return;
+            }
+
+            // 處理這一天的所有流程
+            dayData.routines.forEach(routineData => {
+                routineId++;
+
+                // 查找對應的模板
+                const template = templateMap[routineData.template];
+                if (!template) {
+                    console.warn(`找不到模板: ${routineData.template}`);
+                    return;
+                }
+
+                // 創建流程
+                const routine = {
+                    id: `imported-routine-${routineId}`,
+                    name: `【${dayNameZh || dayName}】${template.label}`,
+                    type: 'custom',
+                    steps: []
+                };
+
+                // 從模板複製步驟
+                if (Array.isArray(template.steps)) {
+                    routine.steps = template.steps.map(step => {
+                        if (typeof step === 'string') {
+                            return { text: step, notes: '' };
+                        } else if (step.text) {
+                            return { text: step.text, notes: step.notes || '' };
+                        }
+                        return { text: String(step), notes: '' };
+                    });
+                }
+
+                routines.push(routine);
+
+                // 創建時段
+                const timeSlot = {
+                    id: `imported-slot-${routineId}`,
+                    name: `${dayNameZh || dayName} ${template.label}`,
+                    time: routineData.time || '08:00',
+                    routine: `imported-routine-${routineId}`,
+                    weekdays: [weekdayNum], // 只在特定星期幾執行
+                    enabled: true
+                };
+
+                timeSlots.push(timeSlot);
+            });
+        });
+    }
+
+    console.log(`已解析模板計劃：${routines.length} 個流程，${timeSlots.length} 個時段`);
 
     return { routines, timeSlots, products: {} };
 };
