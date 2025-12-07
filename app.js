@@ -3741,6 +3741,7 @@ App.loadAiSettings = function() {
 App.loadScheduleFromGoogleSheets = async function(sheetUrl) {
     try {
         console.log('開始讀取 Google Sheets 班表...');
+        console.log('原始 URL:', sheetUrl);
 
         // 解析 Google Sheets URL，提取 Sheet ID 和 gid
         let sheetId, gid;
@@ -3752,10 +3753,16 @@ App.loadScheduleFromGoogleSheets = async function(sheetUrl) {
             throw new Error('無效的 Google Sheets 連結格式');
         }
         sheetId = urlMatch[1];
+        console.log('Sheet ID:', sheetId);
 
-        // 提取 gid
-        const gidMatch = sheetUrl.match(/[#?&]gid=([0-9]+)/);
+        // 提取 gid（嘗試多種格式）
+        // 優先使用 ?gid= 或 &gid=，其次使用 #gid=
+        let gidMatch = sheetUrl.match(/[?&]gid=([0-9]+)/);
+        if (!gidMatch) {
+            gidMatch = sheetUrl.match(/#gid=([0-9]+)/);
+        }
         gid = gidMatch ? gidMatch[1] : '0';
+        console.log('提取的 gid:', gid);
 
         // 建立 CSV 匯出 URL
         const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
