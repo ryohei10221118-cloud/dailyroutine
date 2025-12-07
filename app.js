@@ -4385,55 +4385,88 @@ App.renderAIRecommendations = function(routines) {
     const checkedSteps = aiData?.checkedSteps || {};
 
     routines.forEach((routine, routineIndex) => {
+        // 卡片容器
         const card = document.createElement('div');
         card.className = 'ai-routine-card';
-        card.style.cssText = 'background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 15px;';
 
         // 標題
         const title = document.createElement('h4');
+        title.className = 'ai-routine-title';
         title.textContent = routine.title;
-        title.style.cssText = 'margin: 0 0 12px 0; color: #1f2937; font-size: 16px;';
         card.appendChild(title);
 
-        // 步驟列表
+        // 步驟列表容器
         const stepsList = document.createElement('div');
-        stepsList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+        stepsList.className = 'ai-step-list';
 
         routine.steps.forEach((step, stepIndex) => {
             const stepKey = `${routineIndex}-${stepIndex}`;
             const isChecked = checkedSteps[stepKey] || false;
 
-            const stepDiv = document.createElement('div');
-            stepDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 8px;';
+            // 步驟項目
+            const stepItem = document.createElement('div');
+            stepItem.className = 'ai-step-item';
+            if (isChecked) {
+                stepItem.classList.add('completed');
+            }
 
             // 勾選框
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
+            checkbox.className = 'ai-step-checkbox';
             checkbox.checked = isChecked;
-            checkbox.style.cssText = 'margin-top: 3px; cursor: pointer; width: 16px; height: 16px;';
             checkbox.addEventListener('change', () => {
                 this.toggleAIStepCheck(routineIndex, stepIndex, checkbox.checked);
             });
 
             // 步驟文字
             const stepText = document.createElement('span');
+            stepText.className = 'ai-step-text';
             stepText.textContent = step;
-            stepText.style.cssText = `flex: 1; color: ${isChecked ? '#9ca3af' : '#374151'}; text-decoration: ${isChecked ? 'line-through' : 'none'};`;
 
-            stepDiv.appendChild(checkbox);
-            stepDiv.appendChild(stepText);
-            stepsList.appendChild(stepDiv);
+            // 點擊整個項目也可以切換勾選
+            stepItem.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+
+            stepItem.appendChild(checkbox);
+            stepItem.appendChild(stepText);
+            stepsList.appendChild(stepItem);
         });
 
         card.appendChild(stepsList);
 
-        // 完成進度
+        // 完成進度區域
         const completedCount = routine.steps.filter((_, idx) => checkedSteps[`${routineIndex}-${idx}`]).length;
-        const progress = document.createElement('div');
-        progress.style.cssText = 'margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;';
-        progress.textContent = `已完成 ${completedCount} / ${routine.steps.length} 步驟`;
-        card.appendChild(progress);
+        const totalSteps = routine.steps.length;
+        const percentage = Math.round((completedCount / totalSteps) * 100);
 
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'ai-routine-progress';
+
+        const progressText = document.createElement('span');
+        progressText.className = 'ai-progress-text';
+        progressText.textContent = `${completedCount}/${totalSteps}`;
+
+        const progressBar = document.createElement('div');
+        progressBar.className = 'ai-progress-bar';
+        const progressFill = document.createElement('div');
+        progressFill.className = 'ai-progress-fill';
+        progressFill.style.width = `${percentage}%`;
+        progressBar.appendChild(progressFill);
+
+        const progressPercentage = document.createElement('span');
+        progressPercentage.className = 'ai-progress-percentage';
+        progressPercentage.textContent = `${percentage}%`;
+
+        progressContainer.appendChild(progressText);
+        progressContainer.appendChild(progressBar);
+        progressContainer.appendChild(progressPercentage);
+
+        card.appendChild(progressContainer);
         container.appendChild(card);
     });
 };
@@ -4456,6 +4489,49 @@ App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
     }
 
     localStorage.setItem('ai_recommendations', JSON.stringify(aiRecommendations));
+
+    // 檢查該流程是否全部完成
+    const routine = aiRecommendations[today].routines[routineIndex];
+    const completedSteps = routine.steps.filter((_, idx) =>
+        aiRecommendations[today].checkedSteps[`${routineIndex}-${idx}`]
+    );
+    const isRoutineComplete = completedSteps.length === routine.steps.length;
+
+    // 如果流程完成，檢查是否已經記錄到歷史
+    const routineHistoryId = `ai-${today}-${routineIndex}`;
+    const existingRecord = this.history.find(r => r.id === routineHistoryId);
+
+    if (isRoutineComplete && !existingRecord) {
+        // 添加到歷史記錄（集章日曆）
+        const now = new Date();
+        this.history.unshift({
+            id: routineHistoryId,
+            routineId: `ai-routine-${routineIndex}`,
+            routineName: `✨ ${routine.title}`,
+            slotId: null,
+            date: now.toISOString(),
+            completed: true,
+            completedSteps: routine.steps,
+            totalSteps: routine.steps.length,
+            completionRate: 100
+        });
+
+        // 只保留最近 100 條記錄
+        if (this.history.length > 100) {
+            this.history = this.history.slice(0, 100);
+        }
+
+        this.saveData();
+        console.log('✅ AI 推薦流程已完成並記錄到集章日曆:', routine.title);
+    } else if (!isRoutineComplete && existingRecord) {
+        // 如果取消勾選導致流程未完成，移除歷史記錄
+        const index = this.history.findIndex(r => r.id === routineHistoryId);
+        if (index !== -1) {
+            this.history.splice(index, 1);
+            this.saveData();
+            console.log('❌ AI 推薦流程未完成，已從集章日曆移除:', routine.title);
+        }
+    }
 
     // 重新渲染以更新進度和樣式
     this.renderAIRecommendations(aiRecommendations[today].routines);

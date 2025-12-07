@@ -1907,3 +1907,145 @@ h3 {
     color: var(--primary-color);
     font-size: 18px;
 }
+
+/* ==========================================
+   AI 智能推薦樣式
+   ========================================== */
+
+.ai-recommendations {
+    margin-bottom: 25px;
+}
+
+.ai-routine-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: var(--shadow);
+    transition: all 0.2s;
+}
+
+.ai-routine-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.ai-routine-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-routine-title::before {
+    content: '✨';
+    font-size: 20px;
+}
+
+.ai-step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ai-step-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ai-step-item:hover {
+    background: #e8e5ed;
+    transform: translateX(3px);
+}
+
+.ai-step-item.completed {
+    background: #f2eef7;
+}
+
+.ai-step-item.completed:hover {
+    background: #ede7f5;
+}
+
+.ai-step-checkbox {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+    margin-top: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: var(--primary-color);
+}
+
+.ai-step-text {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    transition: all 0.2s;
+}
+
+.ai-step-item.completed .ai-step-text {
+    color: var(--text-secondary);
+    text-decoration: line-through;
+}
+
+.ai-routine-progress {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid var(--bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-progress-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.ai-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    margin: 0 12px;
+    overflow: hidden;
+}
+
+.ai-progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.ai-progress-percentage {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* 重新整理按鈕 */
+.btn-secondary-small {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+}
+
+.btn-secondary-small:hover {
+    background: #e8e5ed;
+    transform: translateY(-1px);
+}
