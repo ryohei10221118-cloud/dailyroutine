@@ -3778,22 +3778,50 @@ App.loadScheduleFromGoogleSheets = async function(sheetUrl) {
 
         // 第一行是日期標題（姓名, 11/29, 11/30, 12/1, ...）
         const dateHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        console.log('日期標題:', dateHeaders.slice(0, 10)); // 顯示前10個
+        console.log('日期標題（前10個）:', dateHeaders.slice(0, 10));
+        console.log('總共', lines.length, '行資料');
 
-        // 找到 Sunny 的資料行
+        // 顯示前幾行資料以便除錯
+        console.log('前5行資料預覽:');
+        for (let i = 0; i < Math.min(5, lines.length); i++) {
+            const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
+            console.log(`  行${i}: [${row.slice(0, 5).join(', ')}...]`);
+        }
+
+        // 找到 Sunny 的資料行（支援不同欄位和大小寫）
         let sunnyRow = null;
+        let sunnyRowIndex = -1;
+        let nameColumnIndex = -1;
+
         for (let i = 1; i < lines.length; i++) {
             const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
-            // 檢查第二欄（索引1）是否為 "Sunny"
-            if (row[1] && row[1].toLowerCase() === 'sunny') {
-                sunnyRow = row;
-                console.log('找到 Sunny 的班表資料');
-                break;
+
+            // 檢查所有欄位，找到包含 "sunny" 的（不區分大小寫）
+            for (let j = 0; j < Math.min(row.length, 5); j++) {
+                const cellValue = row[j];
+                if (cellValue && cellValue.toLowerCase().includes('sunny')) {
+                    sunnyRow = row;
+                    sunnyRowIndex = i;
+                    nameColumnIndex = j;
+                    console.log(`✅ 找到 Sunny！位於第 ${i + 1} 行，第 ${j + 1} 欄（${String.fromCharCode(65 + j)} 欄）`);
+                    console.log(`   姓名欄位內容: "${cellValue}"`);
+                    console.log(`   該行前10個欄位:`, row.slice(0, 10));
+                    break;
+                }
             }
+
+            if (sunnyRow) break;
         }
 
         if (!sunnyRow) {
-            throw new Error('在 Google Sheets 中找不到「Sunny」的班表資料。請確認姓名位於第二欄（B欄）');
+            // 提供更詳細的錯誤訊息
+            console.error('❌ 找不到 Sunny 的資料');
+            console.error('請檢查:');
+            console.error('1. Google Sheets 連結是否包含正確的 gid (完整班表的分頁)');
+            console.error('2. 姓名欄位是否為「Sunny」（可能有額外空格或不同寫法）');
+            console.error('3. 工作表是否設定為「知道連結的任何人」可檢視');
+
+            throw new Error('在 Google Sheets 中找不到「Sunny」的班表資料。請查看瀏覽器主控台（F12）的詳細除錯資訊');
         }
 
         // 解析班表資料
@@ -3801,8 +3829,11 @@ App.loadScheduleFromGoogleSheets = async function(sheetUrl) {
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1; // 1-12
 
-        // 從第3欄開始是日期資料（索引2開始）
-        for (let i = 2; i < dateHeaders.length && i < sunnyRow.length; i++) {
+        // 從姓名欄位的下一欄開始是日期資料
+        const dateStartIndex = nameColumnIndex + 1;
+        console.log(`日期資料從第 ${dateStartIndex + 1} 欄開始`);
+
+        for (let i = dateStartIndex; i < dateHeaders.length && i < sunnyRow.length; i++) {
             const dateStr = dateHeaders[i]; // 例如: "11/29", "12/1"
             const shift = sunnyRow[i]; // 例如: "N3", "O", "M1"
 
