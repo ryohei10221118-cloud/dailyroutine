@@ -575,6 +575,10 @@ App.setupEventListeners = function() {
     // 關閉流程詳情
     document.getElementById('closeRoutineBtn')?.addEventListener('click', () => this.closeRoutineDetail());
 
+    // AI 設定
+    document.getElementById('aiSettingsBtn')?.addEventListener('click', () => this.showAiSettingsModal());
+    document.getElementById('saveAiSettingsBtn')?.addEventListener('click', () => this.saveAiSettings());
+
     // 智能建議
     document.getElementById('smartSuggestBtn')?.addEventListener('click', () => this.showSmartSuggestModal());
     document.getElementById('generateSuggestBtn')?.addEventListener('click', () => this.generateSmartSuggestion());
@@ -3645,3 +3649,233 @@ setInterval(() => {
         });
     }
 }, 60000);
+
+// === AI 智能推薦功能 ===
+
+// 顯示 AI 設定對話框
+App.showAiSettingsModal = function() {
+    // 載入已儲存的設定
+    const settings = this.loadAiSettings();
+
+    document.getElementById('claudeApiKey').value = settings.claudeApiKey || '';
+    document.getElementById('weatherApiKey').value = settings.weatherApiKey || '';
+    document.getElementById('userLocation').value = settings.userLocation || '';
+    document.getElementById('enableAI').checked = settings.enableAI || false;
+
+    document.getElementById('aiSettingsModal').classList.add('active');
+};
+
+// 儲存 AI 設定
+App.saveAiSettings = function() {
+    const settings = {
+        claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
+        weatherApiKey: document.getElementById('weatherApiKey').value.trim(),
+        userLocation: document.getElementById('userLocation').value,
+        enableAI: document.getElementById('enableAI').checked
+    };
+
+    // 驗證必填欄位
+    if (settings.enableAI) {
+        if (!settings.claudeApiKey) {
+            alert('請輸入 Claude API Key');
+            return;
+        }
+        if (!settings.weatherApiKey) {
+            alert('請輸入中央氣象局 API Key');
+            return;
+        }
+        if (!settings.userLocation) {
+            alert('請選擇您的位置');
+            return;
+        }
+    }
+
+    // 儲存到 localStorage
+    localStorage.setItem('ai_settings', JSON.stringify(settings));
+
+    document.getElementById('aiSettingsModal').classList.remove('active');
+    alert('✅ AI 設定已儲存！');
+
+    // 如果啟用 AI，立即獲取一次推薦
+    if (settings.enableAI) {
+        this.getDailyAIRecommendation();
+    }
+};
+
+// 載入 AI 設定
+App.loadAiSettings = function() {
+    const saved = localStorage.getItem('ai_settings');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.error('無法載入 AI 設定:', e);
+        }
+    }
+    return {};
+};
+
+// 獲取天氣資料（中央氣象局）
+App.getWeatherData = async function() {
+    const settings = this.loadAiSettings();
+    if (!settings.weatherApiKey || !settings.userLocation) {
+        console.warn('缺少天氣 API 設定');
+        return null;
+    }
+
+    try {
+        // 中央氣象局 API - 鄉鎮天氣預報
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${settings.weatherApiKey}&locationName=${settings.userLocation}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success !== 'true') {
+            throw new Error('天氣 API 回應失敗');
+        }
+
+        // 解析天氣數據
+        const location = data.records.location[0];
+        const weatherElements = location.weatherElement;
+
+        // 提取需要的資訊
+        const weather = {
+            location: location.locationName,
+            temp: this.getWeatherElement(weatherElements, 'MinT'), // 最低溫
+            tempMax: this.getWeatherElement(weatherElements, 'MaxT'), // 最高溫
+            pop: this.getWeatherElement(weatherElements, 'PoP'), // 降雨機率
+            wx: this.getWeatherElement(weatherElements, 'Wx'), // 天氣現象
+            ci: this.getWeatherElement(weatherElements, 'CI') // 舒適度
+        };
+
+        console.log('天氣資料:', weather);
+        return weather;
+    } catch (error) {
+        console.error('獲取天氣資料失敗:', error);
+        return null;
+    }
+};
+
+// 輔助函數：從天氣元素中提取值
+App.getWeatherElement = function(elements, elementName) {
+    const element = elements.find(e => e.elementName === elementName);
+    if (element && element.time && element.time[0]) {
+        return element.time[0].parameter.parameterName;
+    }
+    return null;
+};
+
+// 獲取每日 AI 推薦
+App.getDailyAIRecommendation = async function() {
+    const settings = this.loadAiSettings();
+    if (!settings.enableAI) {
+        console.log('AI 推薦未啟用');
+        return;
+    }
+
+    try {
+        // 1. 獲取天氣資料
+        const weather = await this.getWeatherData();
+        if (!weather) {
+            alert('無法獲取天氣資料，請檢查 API 設定');
+            return;
+        }
+
+        // 2. 獲取今日班表
+        const schedule = this.getTodaySchedule();
+
+        // 3. 取得產品清單
+        const products = this.getProductsList();
+
+        // 4. 調用 Claude API 獲取推薦
+        const recommendation = await this.getClaudeRecommendation(weather, schedule, products);
+
+        // 5. 顯示推薦
+        this.displayDailyRecommendation(recommendation);
+
+    } catch (error) {
+        console.error('AI 推薦失敗:', error);
+        alert('AI 推薦失敗：' + error.message);
+    }
+};
+
+// 獲取今日班表
+App.getTodaySchedule = function() {
+    // TODO: 從班表數據中獲取今日的班別
+    // 目前返回預設值
+    return {
+        type: 'work', // work 或 off
+        shift: 'N', // N/M/A/O 等
+        time: '20:30'
+    };
+};
+
+// 取得產品清單
+App.getProductsList = function() {
+    const products = [];
+    for (let id in this.products) {
+        products.push(this.products[id].name);
+    }
+    return products.join('\n');
+};
+
+// 調用 Claude API 獲取推薦
+App.getClaudeRecommendation = async function(weather, schedule, products) {
+    const settings = this.loadAiSettings();
+
+    const prompt = `你是專業的保養顧問。請根據以下資訊，推薦今日的保養流程。
+
+# 今日天氣
+- 地點：${weather.location}
+- 溫度：${weather.temp}°C ~ ${weather.tempMax}°C
+- 天氣：${weather.wx}
+- 降雨機率：${weather.pop}%
+- 舒適度：${weather.ci}
+
+# 工作安排
+- 今天：${schedule.type === 'work' ? '上班日' : '休假日'}
+- 班別：${schedule.shift}
+- 作息時間：${schedule.time}
+
+# 可用產品
+${products}
+
+# 請提供以下建議：
+1. 今日保養重點（考慮天氣和工作）
+2. 需要特別注意的步驟
+3. 產品使用建議
+4. 時間安排建議
+
+請以繁體中文回答，簡潔扼要。`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': settings.claudeApiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 1024,
+            messages: [{
+                role: 'user',
+                content: prompt
+            }]
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Claude API 錯誤: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+};
+
+// 顯示每日推薦
+App.displayDailyRecommendation = function(recommendation) {
+    // TODO: 在首頁顯示推薦卡片
+    console.log('AI 推薦:', recommendation);
+    alert('AI 推薦：\n\n' + recommendation);
+};

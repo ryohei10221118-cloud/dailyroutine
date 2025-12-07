@@ -21,6 +21,7 @@
                 <button class="btn-icon header-menu-trigger" id="headerMenuBtn" title="功能選單">⚙️</button>
                 <div class="header-menu-dropdown" id="headerMenuDropdown">
                     <button class="header-menu-item" id="smartSuggestBtn">✨ AI 智能建議</button>
+                    <button class="header-menu-item" id="aiSettingsBtn">🤖 AI 設定</button>
                     <button class="header-menu-item" id="notificationBtn">🔔 啟用通知</button>
                     <button class="header-menu-item" id="testNotificationBtn" style="display: none;">🔔 測試通知</button>
                     <button class="header-menu-item" id="checkUpdateBtn">🔄 檢查更新</button>
@@ -552,6 +553,79 @@
                 <button class="btn-primary" id="mergeRoutinesBtn" style="width: 100%;">合併流程（保留現有+新增建議）</button>
                 <button class="btn-danger" id="replaceRoutinesBtn" style="width: 100%;">替換流程（清除現有+套用建議）</button>
                 <button class="btn-secondary modal-close" style="width: 100%;">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 設定對話框 -->
+    <div class="modal" id="aiSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🤖 AI 智能推薦設定</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Claude API Key</label>
+                    <input type="password" id="claudeApiKey" placeholder="sk-ant-api03-...">
+                    <small style="color: #666; font-size: 12px;">💡 前往 <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a> 申請</small>
+                </div>
+
+                <div class="form-group">
+                    <label>中央氣象局 API Key</label>
+                    <input type="password" id="weatherApiKey" placeholder="CWA-...">
+                    <small style="color: #666; font-size: 12px;">💡 前往 <a href="https://opendata.cwa.gov.tw/" target="_blank">中央氣象署開放資料平台</a> 申請</small>
+                </div>
+
+                <div class="form-group">
+                    <label>您的位置</label>
+                    <select id="userLocation">
+                        <option value="">請選擇縣市</option>
+                        <option value="臺北市">臺北市</option>
+                        <option value="新北市">新北市</option>
+                        <option value="桃園市">桃園市</option>
+                        <option value="臺中市">臺中市</option>
+                        <option value="臺南市">臺南市</option>
+                        <option value="高雄市">高雄市</option>
+                        <option value="基隆市">基隆市</option>
+                        <option value="新竹市">新竹市</option>
+                        <option value="新竹縣">新竹縣</option>
+                        <option value="苗栗縣">苗栗縣</option>
+                        <option value="彰化縣">彰化縣</option>
+                        <option value="南投縣">南投縣</option>
+                        <option value="雲林縣">雲林縣</option>
+                        <option value="嘉義市">嘉義市</option>
+                        <option value="嘉義縣">嘉義縣</option>
+                        <option value="屏東縣">屏東縣</option>
+                        <option value="宜蘭縣">宜蘭縣</option>
+                        <option value="花蓮縣">花蓮縣</option>
+                        <option value="臺東縣">臺東縣</option>
+                        <option value="澎湖縣">澎湖縣</option>
+                        <option value="金門縣">金門縣</option>
+                        <option value="連江縣">連江縣</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">📍 用於獲取當地天氣資訊</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="enableAI">
+                        <span>啟用每日 AI 智能推薦</span>
+                    </label>
+                    <small style="color: #666; font-size: 12px;">✨ 每天早上根據天氣和班表自動推薦保養流程</small>
+                </div>
+
+                <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin-top: 15px;">
+                    <strong style="color: #374151;">📌 隱私說明</strong>
+                    <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">
+                        • API Key 僅儲存在您的瀏覽器本地，不會上傳到任何伺服器<br>
+                        • 所有 AI 推薦都直接向 Claude API 發送，保養提醒助手不會記錄任何資料
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">取消</button>
+                <button class="btn-primary" id="saveAiSettingsBtn">儲存設定</button>
             </div>
         </div>
     </div>
