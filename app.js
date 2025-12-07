@@ -3103,14 +3103,27 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         return recordDate === dateStr && record.completed;
     });
 
-    // 獲取當天應該有的時段數量
-    const weekday = date.getDay();
-    const expectedSlots = this.timeSlots.filter(slot =>
-        slot.enabled && slot.weekdays.includes(weekday)
-    );
+    // 計算完成度：使用 AI 推薦系統
+    // 檢查當天是否有 AI 推薦
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+    const dayAI = aiRecommendations[dateKey];
 
-    const completedCount = dayRecords.length;
-    const totalCount = expectedSlots.length;
+    let totalCount = 0;
+    let completedCount = dayRecords.length;
+
+    if (dayAI && dayAI.routines) {
+        // 如果有 AI 推薦，使用 AI 推薦的流程數量
+        totalCount = dayAI.routines.length;
+    } else {
+        // 如果沒有 AI 推薦，使用舊的時段系統（向後兼容）
+        const weekday = date.getDay();
+        const expectedSlots = this.timeSlots.filter(slot =>
+            slot.enabled && slot.weekdays.includes(weekday)
+        );
+        totalCount = expectedSlots.length;
+    }
+
     const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
     const dayDiv = document.createElement('div');
@@ -3132,8 +3145,7 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         }
     }
 
-    // 獲取該日期的班表
-    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    // 獲取該日期的班表（dateKey 已在上面定義）
     const daySchedule = this.schedules[dateKey];
     const scheduleEmoji = daySchedule ? (daySchedule.type === 'work' ? '💼' : '🏖️') : '';
 
@@ -3152,7 +3164,7 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
     // 點擊顯示詳情
     dayDiv.addEventListener('click', () => {
         if (dayRecords.length > 0) {
-            this.showDayDetail(date, dayRecords, expectedSlots.length);
+            this.showDayDetail(date, dayRecords, totalCount);
         }
     });
 
@@ -4333,12 +4345,21 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
    - 油性肌：選擇清爽、控油產品，避免過度滋潤
    - 乾性肌：加強保濕，可使用較滋潤產品
    - 敏感肌：選擇溫和、無刺激產品
-3. **避免過度保養**：一天內不要重複使用同類型厚重產品（例如：不要每個時段都擦乳霜）
-4. 根據天氣條件調整（高溫多補水、低溫多保濕、高降雨機率加強防護）
-5. 參考「今日已完成流程」避免重複相同步驟
-6. 上班日的上班前流程要快速高效（3-5分鐘），休假日可以更精緻完整
-7. 請用繁體中文回答
-8. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
+3. **⚠️ 產品使用邏輯（非常重要！）**：
+   - **面膜類產品**：每個流程只能使用一次，不可重複敷面膜（面膜需要 15-20 分鐘，不可能在同一時段敷兩次）
+   - **精華液**：通常只需使用一種，除非是分區使用（例如眼部精華 + 臉部精華）
+   - **乳液/面霜**：選其一即可，不要同時使用多種
+   - **防曬**：只在白天出門前使用，睡前不使用
+   - **產品順序**：清潔 → 化妝水 → 精華液 → 乳液/面霜 → 防曬（日間）
+4. **避免過度保養**：
+   - 一個流程中，同類型產品只使用一次
+   - 一天內不要重複使用厚重產品（例如：不要每個時段都擦乳霜）
+   - 步驟數控制在 5-8 個，避免過度複雜
+5. 根據天氣條件調整（高溫多補水、低溫多保濕、高降雨機率加強防護）
+6. 參考「今日已完成流程」避免重複相同步驟
+7. 上班日的上班前流程要快速高效（3-5分鐘），休假日可以更精緻完整
+8. 請用繁體中文回答
+9. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
 
 開始生成保養流程：`;
 
