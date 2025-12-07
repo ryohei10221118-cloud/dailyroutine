@@ -3663,17 +3663,19 @@ App.showAiSettingsModal = function() {
     document.getElementById('claudeApiKey').value = settings.claudeApiKey || '';
     document.getElementById('weatherApiKey').value = settings.weatherApiKey || '';
     document.getElementById('userLocation').value = settings.userLocation || '';
+    document.getElementById('googleSheetUrl').value = settings.googleSheetUrl || '';
     document.getElementById('enableAI').checked = settings.enableAI || false;
 
     document.getElementById('aiSettingsModal').classList.add('active');
 };
 
 // 儲存 AI 設定
-App.saveAiSettings = function() {
+App.saveAiSettings = async function() {
     const settings = {
         claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
         weatherApiKey: document.getElementById('weatherApiKey').value.trim(),
         userLocation: document.getElementById('userLocation').value,
+        googleSheetUrl: document.getElementById('googleSheetUrl').value.trim(),
         enableAI: document.getElementById('enableAI').checked
     };
 
@@ -3691,13 +3693,28 @@ App.saveAiSettings = function() {
             alert('請選擇您的位置');
             return;
         }
+        if (!settings.googleSheetUrl) {
+            alert('請輸入 Google Sheets 班表連結');
+            return;
+        }
     }
 
     // 儲存到 localStorage
     localStorage.setItem('ai_settings', JSON.stringify(settings));
 
     document.getElementById('aiSettingsModal').classList.remove('active');
-    alert('✅ AI 設定已儲存！');
+
+    // 如果有 Google Sheet 連結，立即讀取班表
+    if (settings.googleSheetUrl) {
+        try {
+            await this.loadScheduleFromGoogleSheets(settings.googleSheetUrl);
+            alert('✅ AI 設定已儲存，班表已同步！');
+        } catch (error) {
+            alert(`⚠️ AI 設定已儲存，但班表讀取失敗：${error.message}`);
+        }
+    } else {
+        alert('✅ AI 設定已儲存！');
+    }
 
     // 如果啟用 AI，立即獲取一次推薦
     if (settings.enableAI) {
@@ -3716,6 +3733,136 @@ App.loadAiSettings = function() {
         }
     }
     return {};
+};
+
+// 從 Google Sheets 載入 Sunny 的班表
+App.loadScheduleFromGoogleSheets = async function(sheetUrl) {
+    try {
+        console.log('開始讀取 Google Sheets 班表...');
+
+        // 解析 Google Sheets URL，提取 Sheet ID 和 gid
+        let sheetId, gid;
+
+        // 格式1: /d/{sheetId}/edit#gid={gid}
+        // 格式2: /d/{sheetId}/edit?gid={gid}
+        const urlMatch = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (!urlMatch) {
+            throw new Error('無效的 Google Sheets 連結格式');
+        }
+        sheetId = urlMatch[1];
+
+        // 提取 gid
+        const gidMatch = sheetUrl.match(/[#?&]gid=([0-9]+)/);
+        gid = gidMatch ? gidMatch[1] : '0';
+
+        // 建立 CSV 匯出 URL
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        console.log('CSV URL:', csvUrl);
+
+        // 獲取 CSV 資料
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+            throw new Error(`無法存取 Google Sheets (${response.status})。請確認已設定為「知道連結的任何人」可檢視`);
+        }
+
+        const csvText = await response.text();
+        console.log('成功獲取 CSV 資料');
+
+        // 解析 CSV
+        const lines = csvText.split('\n');
+        if (lines.length < 2) {
+            throw new Error('Google Sheets 資料格式錯誤');
+        }
+
+        // 第一行是日期標題（姓名, 11/29, 11/30, 12/1, ...）
+        const dateHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        console.log('日期標題:', dateHeaders.slice(0, 10)); // 顯示前10個
+
+        // 找到 Sunny 的資料行
+        let sunnyRow = null;
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
+            // 檢查第二欄（索引1）是否為 "Sunny"
+            if (row[1] && row[1].toLowerCase() === 'sunny') {
+                sunnyRow = row;
+                console.log('找到 Sunny 的班表資料');
+                break;
+            }
+        }
+
+        if (!sunnyRow) {
+            throw new Error('在 Google Sheets 中找不到「Sunny」的班表資料。請確認姓名位於第二欄（B欄）');
+        }
+
+        // 解析班表資料
+        const schedules = {};
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1; // 1-12
+
+        // 從第3欄開始是日期資料（索引2開始）
+        for (let i = 2; i < dateHeaders.length && i < sunnyRow.length; i++) {
+            const dateStr = dateHeaders[i]; // 例如: "11/29", "12/1"
+            const shift = sunnyRow[i]; // 例如: "N3", "O", "M1"
+
+            if (!dateStr || !shift) continue;
+
+            // 解析日期 (月/日 格式)
+            const dateMatch = dateStr.match(/(\d+)\/(\d+)/);
+            if (!dateMatch) continue;
+
+            let month = parseInt(dateMatch[1]);
+            let day = parseInt(dateMatch[2]);
+
+            // 判斷年份：如果月份小於當前月份，可能是明年
+            let year = currentYear;
+            if (month < currentMonth) {
+                year = currentYear + 1;
+            }
+
+            // 格式化為 YYYY-MM-DD
+            const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+            // 判斷班別類型
+            const shiftType = this.getShiftType(shift);
+
+            schedules[dateKey] = {
+                shift: shift,
+                type: shiftType
+            };
+        }
+
+        console.log('成功解析班表，共', Object.keys(schedules).length, '天');
+        console.log('班表範例:', Object.entries(schedules).slice(0, 5));
+
+        // 儲存到 App.schedules
+        this.schedules = schedules;
+        this.saveData();
+
+        return schedules;
+
+    } catch (error) {
+        console.error('讀取 Google Sheets 失敗:', error);
+        throw error;
+    }
+};
+
+// 判斷班別類型（上班/休假）
+App.getShiftType = function(shift) {
+    if (!shift) return 'unknown';
+
+    const shiftUpper = shift.toUpperCase();
+
+    // 休假類型：O (休), P (特休), BTD (生日假)
+    if (shiftUpper === 'O' || shiftUpper === 'P' || shiftUpper === 'BTD') {
+        return 'off';
+    }
+
+    // 上班類型：N/N1/N2/N3 (夜班), M/M1/M2/M3 (早班), A/A1/A2 (中班)
+    if (shiftUpper.startsWith('N') || shiftUpper.startsWith('M') || shiftUpper.startsWith('A')) {
+        return 'work';
+    }
+
+    return 'unknown';
 };
 
 // 獲取天氣資料（中央氣象局）
