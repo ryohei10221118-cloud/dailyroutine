@@ -3666,6 +3666,8 @@ App.showAiSettingsModal = function() {
     document.getElementById('weatherApiKey').value = settings.weatherApiKey || '';
     document.getElementById('userLocation').value = settings.userLocation || '';
     document.getElementById('googleSheetUrl').value = settings.googleSheetUrl || '';
+    document.getElementById('skinType').value = settings.skinType || '';
+    document.getElementById('skincarePreference').value = settings.skincarePreference || '';
     document.getElementById('enableAI').checked = settings.enableAI || false;
 
     document.getElementById('aiSettingsModal').classList.add('active');
@@ -3678,6 +3680,8 @@ App.saveAiSettings = async function() {
         weatherApiKey: document.getElementById('weatherApiKey').value.trim(),
         userLocation: document.getElementById('userLocation').value,
         googleSheetUrl: document.getElementById('googleSheetUrl').value.trim(),
+        skinType: document.getElementById('skinType').value,
+        skincarePreference: document.getElementById('skincarePreference').value,
         enableAI: document.getElementById('enableAI').checked
     };
 
@@ -4215,6 +4219,40 @@ App.getClaudeRecommendation = async function(weather, schedule, timeSlot, produc
         timeSlots = ['起床後 (09:00)', '上午 (10:00)', '下午 (15:00)', '晚間 (19:00)', '睡前 (22:00)'];
     }
 
+    // 獲取膚質和偏好資訊
+    const skinTypeMap = {
+        'combination': '混合肌（T 字易出油，兩頰乾燥）',
+        'oily': '油性肌（容易出油、毛孔粗大）',
+        'dry': '乾性肌（容易乾燥緊繃）',
+        'sensitive': '敏感肌（容易泛紅刺激）',
+        'normal': '中性肌（水油平衡）'
+    };
+    const preferenceMap = {
+        'light': '清爽型（避免厚重質地、過度滋潤）',
+        'balanced': '平衡型（適度保濕）',
+        'rich': '滋潤型（加強保濕）'
+    };
+    const skinTypeText = settings.skinType ? skinTypeMap[settings.skinType] : '未設定';
+    const preferenceText = settings.skincarePreference ? preferenceMap[settings.skincarePreference] : '未設定';
+
+    // 獲取今日已完成的流程（從AI推薦）
+    const today = new Date().toISOString().split('T')[0];
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+    const todayData = aiRecommendations[today];
+    let completedRoutinesText = '無';
+    if (todayData && todayData.routines) {
+        const completed = todayData.routines.filter((routine, idx) => {
+            const totalSteps = routine.steps.length;
+            const completedSteps = routine.steps.filter((_, stepIdx) =>
+                todayData.checkedSteps[`${idx}-${stepIdx}`]
+            ).length;
+            return completedSteps === totalSteps;
+        });
+        if (completed.length > 0) {
+            completedRoutinesText = completed.map(r => r.title).join('、');
+        }
+    }
+
     const prompt = `你是專業的保養顧問 Sunny。請根據以下資訊，為今日每個時段推薦完整的保養流程。
 
 # 今日天氣 (${weather.location})
@@ -4228,6 +4266,14 @@ App.getClaudeRecommendation = async function(weather, schedule, timeSlot, produc
 - 類型：${schedule.type === 'work' ? '上班日' : '休假日'}
 - 班別：${schedule.shift}
 - 當前時段：${timeSlot.label} (${timeSlot.description})
+
+# 使用者膚質與偏好
+- 膚質類型：${skinTypeText}
+- 保養偏好：${preferenceText}
+${settings.skinType === 'combination' ? '- ⚠️ 重要：混合肌請避免全臉使用厚重乳霜，T 字部位用清爽產品，兩頰可用保濕產品' : ''}
+
+# 今日已完成流程
+${completedRoutinesText}
 
 # 可用保養品
 ${products || '（尚未設定產品清單）'}
@@ -4253,11 +4299,18 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
 
 注意事項：
 1. 每個步驟必須是可執行的具體動作（例如："用溫水洗臉"、"塗抹保濕乳液"）
-2. 根據天氣條件調整產品選擇（高溫多補水、低溫多保濕、高降雨機率加強防護）
-3. 上班日的上班前流程要快速高效，休假日可以更精緻完整
-4. 使用可用產品清單中的產品，如無則提供一般性建議
-5. 請用繁體中文回答
-6. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
+2. **根據膚質調整產品選擇**：
+   - 混合肌：避免全臉厚重乳霜，T字用清爽型，兩頰用保濕型
+   - 油性肌：選擇清爽、控油產品，避免過度滋潤
+   - 乾性肌：加強保濕，可使用較滋潤產品
+   - 敏感肌：選擇溫和、無刺激產品
+3. **避免過度保養**：一天內不要重複使用同類型厚重產品（例如：不要每個時段都擦乳霜）
+4. 根據天氣條件調整（高溫多補水、低溫多保濕、高降雨機率加強防護）
+5. 參考「今日已完成流程」避免重複相同步驟
+6. 上班日的上班前流程要快速高效（3-5分鐘），休假日可以更精緻完整
+7. 使用可用產品清單中的產品，如無則提供一般性建議
+8. 請用繁體中文回答
+9. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
 
 開始生成保養流程：`;
 

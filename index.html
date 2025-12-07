@@ -625,11 +625,35 @@
                 </div>
 
                 <div class="form-group">
+                    <label>膚質類型</label>
+                    <select id="skinType">
+                        <option value="">請選擇...</option>
+                        <option value="combination">混合肌（T 字出油、兩頰乾燥）</option>
+                        <option value="oily">油性肌（容易出油、毛孔粗大）</option>
+                        <option value="dry">乾性肌（容易乾燥緊繃）</option>
+                        <option value="sensitive">敏感肌（容易泛紅刺激）</option>
+                        <option value="normal">中性肌（水油平衡）</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">💧 幫助 AI 推薦適合您膚質的保養步驟</small>
+                </div>
+
+                <div class="form-group">
+                    <label>保養偏好</label>
+                    <select id="skincarePreference">
+                        <option value="">請選擇...</option>
+                        <option value="light">清爽型（避免厚重質地）</option>
+                        <option value="balanced">平衡型（適度保濕）</option>
+                        <option value="rich">滋潤型（加強保濕）</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">🌿 根據您的喜好調整產品推薦</small>
+                </div>
+
+                <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" id="enableAI">
                         <span>啟用每日 AI 智能推薦</span>
                     </label>
-                    <small style="color: #666; font-size: 12px;">✨ 每天早上根據天氣和班表自動推薦保養流程</small>
+                    <small style="color: #666; font-size: 12px;">✨ 每天根據天氣、班表、膚質自動推薦保養流程</small>
                 </div>
 
                 <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin-top: 15px;">
