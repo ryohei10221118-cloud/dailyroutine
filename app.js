@@ -3104,27 +3104,38 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
     });
 
     // 計算完成度：使用 AI 推薦系統
-    // 檢查當天是否有 AI 推薦
-    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    // ⚠️ 重要：必須使用與 AI 推薦完全相同的日期格式
+    // AI 使用 ISO string (UTC)，所以這裡也要用 ISO string 來匹配
+    const isoDateKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
+
+    // 同時也準備班表用的本地日期格式
+    const localDateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
-    const dayAI = aiRecommendations[dateKey];
+    const dayAI = aiRecommendations[isoDateKey];
 
     let totalCount = 0;
     let completedCount = dayRecords.length;
 
-    if (dayAI && dayAI.routines) {
+    console.log(`📅 日曆計算 ${localDateKey} (ISO: ${isoDateKey}):`, {
+        hasAI: !!dayAI,
+        routinesCount: dayAI?.routines?.length,
+        completedCount,
+        allKeys: Object.keys(aiRecommendations)
+    });
+
+    if (dayAI && dayAI.routines && dayAI.routines.length > 0) {
         // 如果有 AI 推薦，使用 AI 推薦的流程數量
         totalCount = dayAI.routines.length;
+        console.log(`✅ 使用 AI 推薦數量: ${totalCount}`);
     } else {
-        // 如果沒有 AI 推薦，使用舊的時段系統（向後兼容）
-        const weekday = date.getDay();
-        const expectedSlots = this.timeSlots.filter(slot =>
-            slot.enabled && slot.weekdays.includes(weekday)
-        );
-        totalCount = expectedSlots.length;
+        // 如果沒有 AI 推薦，預設為 2 個時段（上班前+睡前 或 起床+睡前）
+        totalCount = 2;
+        console.log(`⚠️ 沒有 AI 推薦，使用預設值: ${totalCount}`);
     }
 
     const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    console.log(`📊 完成度: ${completedCount}/${totalCount} = ${completionRate}%`);
 
     const dayDiv = document.createElement('div');
     dayDiv.className = 'calendar-day';
@@ -3145,8 +3156,8 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         }
     }
 
-    // 獲取該日期的班表（dateKey 已在上面定義）
-    const daySchedule = this.schedules[dateKey];
+    // 獲取該日期的班表（使用本地日期格式）
+    const daySchedule = this.schedules[localDateKey];
     const scheduleEmoji = daySchedule ? (daySchedule.type === 'work' ? '💼' : '🏖️') : '';
 
     let dayHTML = `<div class="day-number">${dayNum}${scheduleEmoji ? ` <span style="font-size: 10px;">${scheduleEmoji}</span>` : ''}</div>`;
