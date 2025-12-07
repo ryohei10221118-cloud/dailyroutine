@@ -702,15 +702,26 @@ App.updateTodayView = function() {
     const weekdayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
     const today = now.toDateString();
 
-    // 更新星期標題
+    // 更新星期標題和班表狀態
     const dayType = document.getElementById('dayType');
+
+    // 獲取今日班表
+    const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todaySchedule = this.schedules[todayDateKey];
+
+    // 顯示星期和班表
+    let dayText = weekdayNames[weekday];
+    if (todaySchedule) {
+        const shiftEmoji = todaySchedule.type === 'work' ? '💼' : '🏖️';
+        const shiftText = todaySchedule.type === 'work' ? `上班日 (${todaySchedule.shift})` : `休假日 (${todaySchedule.shift})`;
+        dayType.innerHTML = `${dayText} <span style="margin-left: 10px; padding: 4px 12px; background: ${todaySchedule.type === 'work' ? '#fef3c7' : '#d1fae5'}; border-radius: 6px; font-size: 14px;">${shiftEmoji} ${shiftText}</span>`;
+    } else {
+        dayType.textContent = dayText;
+    }
+
     const todaySlots = this.timeSlots.filter(slot =>
         slot.enabled && slot.weekdays.includes(weekday)
     );
-
-    // 檢查是否為水楊酸日
-    const isBHADay = todaySlots.some(slot => slot.routine === 'routine-a-bha');
-    dayType.textContent = `${weekdayNames[weekday]} ${isBHADay ? '⭐ 水楊酸日' : ''}`;
 
     // 渲染今日時間軸
     const timeline = document.getElementById('todayTimeline');
@@ -4204,19 +4215,22 @@ App.getProductsList = function() {
 App.getClaudeRecommendation = async function(weather, schedule, timeSlot, products) {
     const settings = this.loadAiSettings();
 
-    // 根據班別確定今日所有時段
+    // 根據班別確定今日所有時段（簡化版：每天只有 2 個時段）
     let timeSlots = [];
     if (schedule.type === 'work') {
+        // 上班日：上班前 + 睡前
         if (schedule.shift.toUpperCase().startsWith('N')) {
-            timeSlots = ['起床後 (20:30)', '上班前 (21:30)', '下班後 (08:00)', '睡前 (11:00)'];
+            timeSlots = ['上班前 (21:30)', '睡前 (11:00)'];
         } else if (schedule.shift.toUpperCase().startsWith('M')) {
-            timeSlots = ['起床後 (05:00)', '上班前 (06:00)', '下班後 (16:30)', '睡前 (22:00)'];
+            timeSlots = ['上班前 (06:00)', '睡前 (22:00)'];
         } else if (schedule.shift.toUpperCase().startsWith('A')) {
-            timeSlots = ['起床後 (12:00)', '上班前 (13:00)', '下班後 (23:30)', '睡前 (01:30)'];
+            timeSlots = ['上班前 (13:00)', '睡前 (01:30)'];
+        } else {
+            timeSlots = ['上班前', '睡前'];
         }
     } else {
-        // 休假日
-        timeSlots = ['起床後 (09:00)', '上午 (10:00)', '下午 (15:00)', '晚間 (19:00)', '睡前 (22:00)'];
+        // 休假日：起床後 + 睡前
+        timeSlots = ['起床後 (09:00)', '睡前 (22:00)'];
     }
 
     // 獲取膚質和偏好資訊

@@ -35,8 +35,6 @@
             <nav class="tab-nav">
                 <button class="tab-btn active" data-tab="today">今日流程</button>
                 <button class="tab-btn" data-tab="calendar">集章日曆</button>
-                <button class="tab-btn" data-tab="routines">流程管理</button>
-                <button class="tab-btn" data-tab="schedule">時段設定</button>
                 <button class="tab-btn" data-tab="reminders">提醒</button>
                 <button class="tab-btn" data-tab="products">產品管理</button>
             </nav>
@@ -74,72 +72,6 @@
                         <!-- 動態生成步驟 -->
                     </div>
                     <button class="btn-complete" id="completeRoutineBtn">✓ 完成此流程</button>
-                </div>
-            </section>
-
-            <!-- 時段設定頁面 -->
-            <section class="tab-content" id="schedule-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div>
-                        <h2 style="margin: 0;">⏰ 時段設定</h2>
-                        <p class="section-desc" style="margin: 5px 0 0 0;">您可以自由新增或刪除提醒時段</p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-add-small" id="addTimeSlotBtn">+ 新增</button>
-                        <button class="btn-select-mode" id="toggleSlotSelectModeBtn">選擇</button>
-                    </div>
-                </div>
-
-                <!-- 星期選擇器 -->
-                <div class="weekday-filter">
-                    <label for="weekdayFilter">選擇星期：</label>
-                    <select id="weekdayFilter" class="weekday-filter-select">
-                        <option value="all">全部時段</option>
-                        <option value="1">週一</option>
-                        <option value="2">週二</option>
-                        <option value="3">週三</option>
-                        <option value="4">週四</option>
-                        <option value="5">週五</option>
-                        <option value="6">週六</option>
-                        <option value="0">週日</option>
-                    </select>
-                </div>
-
-                <div class="batch-actions" id="slotBatchActions" style="display: none;">
-                    <button class="btn-select-all" id="selectAllSlotsBtn">全選</button>
-                    <button class="btn-batch-edit" id="batchEditSlotsBtn">批量修改</button>
-                    <button class="btn-delete-selected" id="deleteSelectedSlotsBtn">刪除選中</button>
-                    <button class="btn-cancel-select" id="cancelSlotSelectBtn">取消</button>
-                </div>
-
-                <div class="time-slots-list" id="timeSlotsList">
-                    <!-- 動態生成 -->
-                </div>
-
-                <!-- 週間排程 -->
-                <div class="weekly-schedule">
-                    <h3>每週排程</h3>
-                    <div id="weeklyScheduleView">
-                        <!-- 動態生成 -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- 流程管理頁面 -->
-            <section class="tab-content" id="routines-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">📋 流程管理</h2>
-                    <button class="btn-select-mode" id="toggleRoutineSelectModeBtn">選擇</button>
-                </div>
-
-                <div class="batch-actions" id="routineBatchActions" style="display: none;">
-                    <button class="btn-select-all" id="selectAllRoutinesBtn">全選</button>
-                    <button class="btn-delete-selected" id="deleteSelectedRoutinesBtn">刪除選中</button>
-                    <button class="btn-cancel-select" id="cancelRoutineSelectBtn">取消</button>
-                </div>
-
-                <div class="routines-list" id="routinesList">
-                    <!-- 動態生成 -->
                 </div>
             </section>
 
