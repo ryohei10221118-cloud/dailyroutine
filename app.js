@@ -709,7 +709,7 @@ App.updateTodayView = function() {
     if (todaySchedule) {
         const shiftEmoji = todaySchedule.type === 'work' ? '💼' : '🏖️';
         const shiftText = todaySchedule.type === 'work' ? `上班日 (${todaySchedule.shift})` : `休假日 (${todaySchedule.shift})`;
-        dayType.innerHTML = `${dayText} <span style="margin-left: 10px; padding: 4px 12px; background: ${todaySchedule.type === 'work' ? '#fef3c7' : '#d1fae5'}; border-radius: 6px; font-size: 14px;">${shiftEmoji} ${shiftText}</span>`;
+        dayType.innerHTML = `${dayText} <span style="margin-left: 10px; padding: 4px 12px; background: ${todaySchedule.type === 'work' ? '#f5f0e8' : '#d1fae5'}; border-radius: 6px; font-size: 14px;">${shiftEmoji} ${shiftText}</span>`;
     } else {
         dayType.textContent = dayText;
     }
@@ -3132,7 +3132,12 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         }
     }
 
-    let dayHTML = `<div class="day-number">${dayNum}</div>`;
+    // 獲取該日期的班表
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const daySchedule = this.schedules[dateKey];
+    const scheduleEmoji = daySchedule ? (daySchedule.type === 'work' ? '💼' : '🏖️') : '';
+
+    let dayHTML = `<div class="day-number">${dayNum}${scheduleEmoji ? ` <span style="font-size: 10px;">${scheduleEmoji}</span>` : ''}</div>`;
 
     if (completedCount > 0) {
         if (completionRate === 100) {
@@ -4317,7 +4322,10 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
 4. 根據天氣條件調整（高溫多補水、低溫多保濕、高降雨機率加強防護）
 5. 參考「今日已完成流程」避免重複相同步驟
 6. 上班日的上班前流程要快速高效（3-5分鐘），休假日可以更精緻完整
-7. 使用可用產品清單中的產品，如無則提供一般性建議
+7. **【重要】嚴格使用「可用保養品」清單中的產品**：
+   - 只能使用上面列出的產品名稱
+   - 如果產品清單為空或沒有合適產品，使用一般性描述（例如："化妝水"、"乳液"、"防曬"）
+   - 絕對不要推薦清單中沒有的特定品牌或產品名稱
 8. 請用繁體中文回答
 9. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
 
