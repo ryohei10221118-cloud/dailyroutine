@@ -4172,7 +4172,20 @@ App.getDailyAIRecommendation = async function() {
 
     } catch (error) {
         console.error('AI 推薦失敗:', error);
-        alert('AI 推薦失敗：' + error.message);
+
+        // 更友善的錯誤提示
+        let userMessage = 'AI 推薦失敗';
+        if (error.message.includes('過載') || error.message.includes('Overloaded')) {
+            userMessage = '⏳ Claude API 目前使用量較大\n\n請稍等 1-2 分鐘後再試，或者多按幾次「重新生成」按鈕，系統會自動重試。';
+        } else if (error.message.includes('API Key')) {
+            userMessage = '❌ API Key 設定有誤\n\n請到「設定」頁面檢查您的 Claude API Key 是否正確。';
+        } else if (error.message.includes('無法獲取天氣')) {
+            userMessage = '❌ 無法獲取天氣資料\n\n請檢查天氣 API 設定是否正確。';
+        } else {
+            userMessage = `❌ AI 推薦失敗\n\n${error.message}\n\n請稍後再試或檢查設定。`;
+        }
+
+        alert(userMessage);
     }
 };
 
@@ -4329,45 +4342,98 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
 
 開始生成保養流程：`;
 
-    // 調用 Vercel Serverless Function 代理
-    const response = await fetch('/api/ai-recommend', {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-            prompt: prompt,
-            apiKey: settings.claudeApiKey
-        })
-    });
+    // 使用重試機制調用 API
+    const maxRetries = 3;
+    let lastError;
 
-    if (!response.ok) {
-        let errorData;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            errorData = await response.json();
-        } catch {
-            errorData = { error: await response.text() };
-        }
+            console.log(`嘗試調用 AI API (第 ${attempt}/${maxRetries} 次)`);
 
-        console.error('API 錯誤詳情:', errorData);
+            const response = await fetch('/api/ai-recommend', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    apiKey: settings.claudeApiKey
+                })
+            });
 
-        // 顯示詳細錯誤信息
-        let errorMessage = `API 錯誤 ${response.status}`;
-        if (errorData.details) {
-            if (typeof errorData.details === 'object') {
-                errorMessage += '\n\n詳細信息：\n' + JSON.stringify(errorData.details, null, 2);
-            } else {
-                errorMessage += '\n\n' + errorData.details;
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch {
+                    errorData = { error: await response.text() };
+                }
+
+                console.error('API 錯誤詳情:', errorData);
+
+                // 檢查是否為可重試的錯誤 (529 Overloaded, 500 系列錯誤等)
+                const isRetryable = response.status === 529 ||
+                                   response.status >= 500 ||
+                                   (errorData.error && errorData.error.type === 'overloaded_error');
+
+                if (isRetryable && attempt < maxRetries) {
+                    const waitTime = Math.pow(2, attempt) * 1000; // 指數退避: 2s, 4s, 8s
+                    console.log(`⏳ API 過載，${waitTime/1000} 秒後重試...`);
+
+                    // 顯示重試提示
+                    const loadingMsg = document.getElementById('aiLoadingMessage');
+                    if (loadingMsg) {
+                        loadingMsg.textContent = `⏳ API 暫時過載，${waitTime/1000} 秒後自動重試 (${attempt}/${maxRetries})...`;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    continue; // 重試
+                }
+
+                // 不可重試或已達最大重試次數，顯示錯誤
+                let errorMessage = `API 錯誤 ${response.status}`;
+                if (response.status === 529) {
+                    errorMessage = 'Claude API 目前過載，請稍後再試';
+                } else if (errorData.details) {
+                    if (typeof errorData.details === 'object') {
+                        errorMessage += '\n\n詳細信息：\n' + JSON.stringify(errorData.details, null, 2);
+                    } else {
+                        errorMessage += '\n\n' + errorData.details;
+                    }
+                } else if (errorData.error) {
+                    if (typeof errorData.error === 'object') {
+                        errorMessage += '\n\n' + (errorData.error.message || JSON.stringify(errorData.error));
+                    } else {
+                        errorMessage += '\n\n' + errorData.error;
+                    }
+                }
+
+                throw new Error(errorMessage);
             }
-        } else if (errorData.error) {
-            errorMessage += '\n\n' + errorData.error;
-        }
 
-        throw new Error(errorMessage);
+            // 成功獲取回應
+            const data = await response.json();
+            console.log('✅ AI API 調用成功');
+            return data.recommendation;
+
+        } catch (error) {
+            lastError = error;
+
+            // 如果是網絡錯誤且未達最大重試次數，則重試
+            if (attempt < maxRetries && (error.message.includes('fetch') || error.message.includes('network'))) {
+                const waitTime = Math.pow(2, attempt) * 1000;
+                console.log(`⏳ 網絡錯誤，${waitTime/1000} 秒後重試...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+            }
+
+            // 否則拋出錯誤
+            throw error;
+        }
     }
 
-    const data = await response.json();
-    return data.recommendation;
+    // 所有重試都失敗
+    throw lastError || new Error('API 調用失敗');
 };
 
 // 驗證 AI 推薦是否只使用清單中的產品
