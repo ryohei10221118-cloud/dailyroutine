@@ -709,7 +709,7 @@ App.updateTodayView = function() {
     if (todaySchedule) {
         const shiftEmoji = todaySchedule.type === 'work' ? '💼' : '🏖️';
         const shiftText = todaySchedule.type === 'work' ? `上班日 (${todaySchedule.shift})` : `休假日 (${todaySchedule.shift})`;
-        dayType.innerHTML = `${dayText} <span style="margin-left: 10px; padding: 4px 12px; background: ${todaySchedule.type === 'work' ? '#f5f0e8' : '#d1fae5'}; border-radius: 6px; font-size: 14px;">${shiftEmoji} ${shiftText}</span>`;
+        dayType.innerHTML = `${dayText} <span style="margin-left: 10px; padding: 4px 12px; background: ${todaySchedule.type === 'work' ? '#f5f0e8' : '#d1fae5'}; color: #374151; border-radius: 6px; font-size: 14px;">${shiftEmoji} ${shiftText}</span>`;
     } else {
         dayType.textContent = dayText;
     }
@@ -4289,8 +4289,10 @@ ${settings.skinType === 'combination' ? '- ⚠️ 重要：混合肌請避免全
 # 今日已完成流程
 ${completedRoutinesText}
 
-# 可用保養品
-${products || '（尚未設定產品清單）'}
+# ⚠️ 可用保養品清單（請務必嚴格遵守！）
+${products ? `使用者目前擁有以下產品，**請只使用這些產品**：\n${products}` : '（使用者尚未設定產品清單，請使用一般性描述如「洗面乳」、「化妝水」、「乳液」、「防曬」等，**不要提及任何品牌或特定產品名稱**）'}
+
+${products ? '\n⚠️ **重要提醒**：使用者特別強調，**只能**使用上方清單中的產品。如果需要某個步驟但清單中沒有對應產品，請用產品類別描述（如「化妝水」、「精華液」）而非具體品牌或產品名。這對使用者非常重要！' : ''}
 
 # 任務要求
 請為今日的**每個時段**生成一個完整的保養流程，每個流程包含 5-8 個具體步驟。
@@ -4322,12 +4324,8 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
 4. 根據天氣條件調整（高溫多補水、低溫多保濕、高降雨機率加強防護）
 5. 參考「今日已完成流程」避免重複相同步驟
 6. 上班日的上班前流程要快速高效（3-5分鐘），休假日可以更精緻完整
-7. **【重要】嚴格使用「可用保養品」清單中的產品**：
-   - 只能使用上面列出的產品名稱
-   - 如果產品清單為空或沒有合適產品，使用一般性描述（例如："化妝水"、"乳液"、"防曬"）
-   - 絕對不要推薦清單中沒有的特定品牌或產品名稱
-8. 請用繁體中文回答
-9. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
+7. 請用繁體中文回答
+8. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
 
 開始生成保養流程：`;
 
@@ -4372,6 +4370,81 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
     return data.recommendation;
 };
 
+// 驗證 AI 推薦是否只使用清單中的產品
+App.validateProductUsage = function(routines) {
+    // 取得使用者的產品清單
+    const userProducts = [];
+    for (let id in this.products) {
+        userProducts.push(this.products[id].name.toLowerCase());
+    }
+
+    // 如果沒有產品清單，不需要驗證
+    if (userProducts.length === 0) {
+        return { valid: true, warnings: [] };
+    }
+
+    const warnings = [];
+    const suspiciousSteps = [];
+
+    // 常見的產品關鍵詞（用於檢測是否提到了不在清單中的特定產品）
+    // 這些是合法的一般性描述，不應被標記
+    const genericTerms = ['洗面乳', '化妝水', '精華液', '乳液', '面霜', '防曬', '眼霜', '卸妝', '清潔', '保濕', '爽膚水', '防護', '滋潤'];
+
+    routines.forEach((routine, rIdx) => {
+        routine.steps.forEach((step, sIdx) => {
+            const stepLower = step.toLowerCase();
+
+            // 檢查是否包含使用者的產品
+            let containsUserProduct = false;
+            for (let product of userProducts) {
+                if (stepLower.includes(product)) {
+                    containsUserProduct = true;
+                    break;
+                }
+            }
+
+            // 檢查是否只是一般性描述
+            let isGenericOnly = true;
+            for (let term of genericTerms) {
+                if (stepLower.includes(term.toLowerCase())) {
+                    isGenericOnly = true;
+                    break;
+                }
+            }
+
+            // 如果步驟中提到產品，但不是使用者的產品，也不是一般性描述
+            // 可能就是 AI 推薦了清單外的產品
+            const mentionsProduct = stepLower.includes('塗') || stepLower.includes('擦') ||
+                                   stepLower.includes('使用') || stepLower.includes('抹') ||
+                                   stepLower.includes('敷');
+
+            if (mentionsProduct && !containsUserProduct && !isGenericOnly) {
+                // 進一步檢查是否包含品牌名稱或特定產品（通常包含英文或括號）
+                const hasBrandName = /[A-Za-z]{3,}/.test(step) || /[（(].*[）)]/.test(step);
+
+                if (hasBrandName) {
+                    suspiciousSteps.push({
+                        routine: routine.title,
+                        step: step,
+                        index: `${rIdx}-${sIdx}`
+                    });
+                }
+            }
+        });
+    });
+
+    if (suspiciousSteps.length > 0) {
+        console.warn('⚠️ 檢測到可能使用清單外產品的步驟:', suspiciousSteps);
+        warnings.push(`檢測到 ${suspiciousSteps.length} 個步驟可能使用了您清單外的產品`);
+    }
+
+    return {
+        valid: suspiciousSteps.length === 0,
+        warnings: warnings,
+        suspiciousSteps: suspiciousSteps
+    };
+};
+
 // 顯示每日推薦
 App.displayDailyRecommendation = function(recommendation) {
     console.log('AI 推薦原始內容:', recommendation);
@@ -4383,6 +4456,22 @@ App.displayDailyRecommendation = function(recommendation) {
         console.warn('無法解析 AI 推薦');
         alert('AI 推薦格式異常，請重新生成');
         return;
+    }
+
+    // 驗證產品使用
+    const validation = this.validateProductUsage(routines);
+    if (!validation.valid && validation.warnings.length > 0) {
+        console.warn('⚠️ 產品驗證警告:', validation);
+
+        const suspiciousDetails = validation.suspiciousSteps
+            .map(s => `• ${s.routine}: ${s.step}`)
+            .join('\n');
+
+        if (confirm(`⚠️ 注意：AI 可能推薦了您清單外的產品\n\n${suspiciousDetails}\n\n是否重新生成推薦？`)) {
+            // 使用者選擇重新生成
+            this.generateDailyRecommendation();
+            return;
+        }
     }
 
     // 儲存 AI 推薦到 localStorage
@@ -4593,6 +4682,9 @@ App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
 
         this.saveData();
         console.log('✅ AI 推薦流程已完成並記錄到集章日曆:', routine.title);
+
+        // 更新日曆視圖以反映完成狀態
+        this.updateCalendarView();
     } else if (!isRoutineComplete && existingRecord) {
         // 如果取消勾選導致流程未完成，移除歷史記錄
         const index = this.history.findIndex(r => r.id === routineHistoryId);
@@ -4600,6 +4692,9 @@ App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
             this.history.splice(index, 1);
             this.saveData();
             console.log('❌ AI 推薦流程未完成，已從集章日曆移除:', routine.title);
+
+            // 更新日曆視圖以反映移除狀態
+            this.updateCalendarView();
         }
     }
 
