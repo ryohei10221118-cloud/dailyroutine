@@ -76,16 +76,11 @@ const App = {
 
     // 初始化預設資料
     initializeDefaultData() {
-        // 如果沒有資料，創建預設流程
-        if (Object.keys(this.routines).length === 0) {
-            this.createDefaultRoutines();
-        }
+        // 只創建預設產品（流程和時段由 AI 自動推薦）
         if (Object.keys(this.products).length === 0) {
             this.createDefaultProducts();
         }
-        if (this.timeSlots.length === 0) {
-            this.createDefaultTimeSlots();
-        }
+        // 不再創建預設流程和時段，所有保養由 AI 推薦
     },
 
     // 創建預設保養流程
