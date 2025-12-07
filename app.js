@@ -3861,8 +3861,28 @@ ${products}
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API 錯誤: ${response.status}`);
+        let errorData;
+        try {
+            errorData = await response.json();
+        } catch {
+            errorData = { error: await response.text() };
+        }
+
+        console.error('API 錯誤詳情:', errorData);
+
+        // 顯示詳細錯誤信息
+        let errorMessage = `API 錯誤 ${response.status}`;
+        if (errorData.details) {
+            if (typeof errorData.details === 'object') {
+                errorMessage += '\n\n詳細信息：\n' + JSON.stringify(errorData.details, null, 2);
+            } else {
+                errorMessage += '\n\n' + errorData.details;
+            }
+        } else if (errorData.error) {
+            errorMessage += '\n\n' + errorData.error;
+        }
+
+        throw new Error(errorMessage);
     }
 
     const data = await response.json();
