@@ -37,6 +37,7 @@ const App = {
         this.updateUI();
         this.checkNotificationPermission();
         this.scheduleNotifications();
+        this.loadTodayAIRecommendations(); // 載入今日 AI 推薦
     },
 
     // 載入本地資料
@@ -581,6 +582,7 @@ App.setupEventListeners = function() {
     // AI 設定
     document.getElementById('aiSettingsBtn')?.addEventListener('click', () => this.showAiSettingsModal());
     document.getElementById('saveAiSettingsBtn')?.addEventListener('click', () => this.saveAiSettings());
+    document.getElementById('refreshAIBtn')?.addEventListener('click', () => this.getDailyAIRecommendation());
 
     // 智能建議
     document.getElementById('smartSuggestBtn')?.addEventListener('click', () => this.showSmartSuggestModal());
@@ -3865,6 +3867,175 @@ App.getShiftType = function(shift) {
     return 'unknown';
 };
 
+// 獲取當前時段資訊（根據班別和時間）
+App.getCurrentTimeSlot = function() {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute; // 轉換為分鐘數以便比較
+
+    // 獲取今日班表
+    const todaySchedule = this.schedules[today];
+
+    if (!todaySchedule) {
+        console.warn('今天沒有班表資料，使用預設時段');
+        return this.getDefaultTimeSlot(currentTime);
+    }
+
+    const shift = todaySchedule.shift.toUpperCase();
+    const shiftType = todaySchedule.type;
+
+    // 休假日：使用一般作息
+    if (shiftType === 'off') {
+        return this.getOffDayTimeSlot(currentTime, shift);
+    }
+
+    // 上班日：根據班別判斷
+    if (shift.startsWith('N')) {
+        // 夜班：20:30 起床 → 上班 → 08:00 下班 → 12:00 睡覺
+        return this.getNightShiftTimeSlot(currentTime, shift);
+    } else if (shift.startsWith('M')) {
+        // 早班：05:00-05:30 起床 → 上班 → 16:30 下班 → 23:00 睡覺
+        return this.getMorningShiftTimeSlot(currentTime, shift);
+    } else if (shift.startsWith('A')) {
+        // 中班：12:00 起床 → 上班 → 23:30 下班 → 02:00-03:00 睡覺
+        return this.getAfternoonShiftTimeSlot(currentTime, shift);
+    }
+
+    // 未知班別，使用預設
+    return this.getDefaultTimeSlot(currentTime);
+};
+
+// 夜班時段判斷（20:30 起床 → 上班 → 08:00 下班 → 12:00 睡覺）
+App.getNightShiftTimeSlot = function(currentTime, shift) {
+    const wake = 20 * 60 + 30; // 20:30
+    const workOff = 8 * 60; // 08:00 (隔天)
+    const sleep = 12 * 60; // 12:00
+
+    // 20:30-21:30: 起床後
+    if (currentTime >= wake && currentTime < wake + 60) {
+        return { slot: 'wake', label: '起床後', description: `夜班 ${shift}，剛起床準備上班`, shift };
+    }
+    // 21:30-22:00: 上班前
+    if (currentTime >= wake + 60 || currentTime < 0) {
+        return { slot: 'before_work', label: '上班前', description: `夜班 ${shift}，準備出門上班`, shift };
+    }
+    // 08:00-09:00: 下班後
+    if (currentTime >= workOff && currentTime < workOff + 60) {
+        return { slot: 'after_work', label: '下班後', description: `夜班 ${shift}，剛下班返家`, shift };
+    }
+    // 11:00-12:00: 睡前
+    if (currentTime >= sleep - 60 && currentTime < sleep) {
+        return { slot: 'before_sleep', label: '睡前', description: `夜班 ${shift}，準備休息`, shift };
+    }
+    // 其他時間（睡眠中）
+    return { slot: 'resting', label: '休息中', description: `夜班 ${shift}，休息時間`, shift };
+};
+
+// 早班時段判斷（05:00-05:30 起床 → 上班 → 16:30 下班 → 23:00 睡覺）
+App.getMorningShiftTimeSlot = function(currentTime, shift) {
+    const wake = 5 * 60; // 05:00
+    const workOff = 16 * 60 + 30; // 16:30
+    const sleep = 23 * 60; // 23:00
+
+    // 05:00-06:00: 起床後
+    if (currentTime >= wake && currentTime < wake + 60) {
+        return { slot: 'wake', label: '起床後', description: `早班 ${shift}，剛起床準備上班`, shift };
+    }
+    // 06:00-07:00: 上班前
+    if (currentTime >= wake + 60 && currentTime < wake + 120) {
+        return { slot: 'before_work', label: '上班前', description: `早班 ${shift}，準備出門上班`, shift };
+    }
+    // 16:30-17:30: 下班後
+    if (currentTime >= workOff && currentTime < workOff + 60) {
+        return { slot: 'after_work', label: '下班後', description: `早班 ${shift}，剛下班返家`, shift };
+    }
+    // 22:00-23:00: 睡前
+    if (currentTime >= sleep - 60 && currentTime < sleep) {
+        return { slot: 'before_sleep', label: '睡前', description: `早班 ${shift}，準備休息`, shift };
+    }
+    // 其他時間
+    if (currentTime >= wake + 120 && currentTime < workOff) {
+        return { slot: 'working', label: '工作中', description: `早班 ${shift}，工作時間`, shift };
+    }
+    return { slot: 'resting', label: '休息中', description: `早班 ${shift}，休息時間`, shift };
+};
+
+// 中班時段判斷（12:00 起床 → 上班 → 23:30 下班 → 02:00-03:00 睡覺）
+App.getAfternoonShiftTimeSlot = function(currentTime, shift) {
+    const wake = 12 * 60; // 12:00
+    const workOff = 23 * 60 + 30; // 23:30
+    const sleep = 2 * 60 + 30; // 02:30 (隔天)
+
+    // 12:00-13:00: 起床後
+    if (currentTime >= wake && currentTime < wake + 60) {
+        return { slot: 'wake', label: '起床後', description: `中班 ${shift}，剛起床準備上班`, shift };
+    }
+    // 13:00-14:00: 上班前
+    if (currentTime >= wake + 60 && currentTime < wake + 120) {
+        return { slot: 'before_work', label: '上班前', description: `中班 ${shift}，準備出門上班`, shift };
+    }
+    // 23:30-00:30: 下班後（跨日）
+    if (currentTime >= workOff || currentTime < 30) {
+        return { slot: 'after_work', label: '下班後', description: `中班 ${shift}，剛下班返家`, shift };
+    }
+    // 01:30-02:30: 睡前
+    if (currentTime >= sleep - 60 && currentTime < sleep) {
+        return { slot: 'before_sleep', label: '睡前', description: `中班 ${shift}，準備休息`, shift };
+    }
+    // 其他時間
+    if (currentTime >= wake + 120 && currentTime < workOff) {
+        return { slot: 'working', label: '工作中', description: `中班 ${shift}，工作時間`, shift };
+    }
+    return { slot: 'resting', label: '休息中', description: `中班 ${shift}，休息時間`, shift };
+};
+
+// 休假日時段判斷
+App.getOffDayTimeSlot = function(currentTime, shift) {
+    const wake = 9 * 60; // 09:00
+    const sleep = 23 * 60; // 23:00
+
+    // 09:00-10:00: 起床後
+    if (currentTime >= wake && currentTime < wake + 60) {
+        return { slot: 'wake', label: '起床後', description: `休假日 (${shift})，享受悠閒早晨`, shift };
+    }
+    // 10:00-12:00: 日間保養
+    if (currentTime >= wake + 60 && currentTime < 12 * 60) {
+        return { slot: 'morning', label: '上午', description: `休假日 (${shift})，日間活動`, shift };
+    }
+    // 12:00-18:00: 下午時段
+    if (currentTime >= 12 * 60 && currentTime < 18 * 60) {
+        return { slot: 'afternoon', label: '下午', description: `休假日 (${shift})，下午時光`, shift };
+    }
+    // 18:00-22:00: 晚間時段
+    if (currentTime >= 18 * 60 && currentTime < 22 * 60) {
+        return { slot: 'evening', label: '晚間', description: `休假日 (${shift})，晚間放鬆`, shift };
+    }
+    // 22:00-23:00: 睡前
+    if (currentTime >= sleep - 60 && currentTime < sleep) {
+        return { slot: 'before_sleep', label: '睡前', description: `休假日 (${shift})，準備休息`, shift };
+    }
+    return { slot: 'night', label: '深夜', description: `休假日 (${shift})，深夜時段`, shift };
+};
+
+// 預設時段判斷（無班表資料時）
+App.getDefaultTimeSlot = function(currentTime) {
+    if (currentTime >= 6 * 60 && currentTime < 7 * 60) {
+        return { slot: 'wake', label: '起床後', description: '早晨時段', shift: 'N/A' };
+    }
+    if (currentTime >= 7 * 60 && currentTime < 9 * 60) {
+        return { slot: 'morning', label: '上午', description: '上午時段', shift: 'N/A' };
+    }
+    if (currentTime >= 12 * 60 && currentTime < 18 * 60) {
+        return { slot: 'afternoon', label: '下午', description: '下午時段', shift: 'N/A' };
+    }
+    if (currentTime >= 22 * 60 && currentTime < 23 * 60) {
+        return { slot: 'before_sleep', label: '睡前', description: '晚間時段', shift: 'N/A' };
+    }
+    return { slot: 'other', label: '一般時段', description: '其他時段', shift: 'N/A' };
+};
+
 // 獲取天氣資料（中央氣象局）
 App.getWeatherData = async function() {
     const settings = this.loadAiSettings();
@@ -3934,13 +4105,16 @@ App.getDailyAIRecommendation = async function() {
         // 2. 獲取今日班表
         const schedule = this.getTodaySchedule();
 
-        // 3. 取得產品清單
+        // 3. 獲取當前時段資訊
+        const currentTimeSlot = this.getCurrentTimeSlot();
+
+        // 4. 取得產品清單
         const products = this.getProductsList();
 
-        // 4. 調用 Claude API 獲取推薦
-        const recommendation = await this.getClaudeRecommendation(weather, schedule, products);
+        // 5. 調用 Claude API 獲取推薦
+        const recommendation = await this.getClaudeRecommendation(weather, schedule, currentTimeSlot, products);
 
-        // 5. 顯示推薦
+        // 6. 顯示推薦
         this.displayDailyRecommendation(recommendation);
 
     } catch (error) {
@@ -3949,14 +4123,29 @@ App.getDailyAIRecommendation = async function() {
     }
 };
 
-// 獲取今日班表
+// 獲取今日班表和時段資訊
 App.getTodaySchedule = function() {
-    // TODO: 從班表數據中獲取今日的班別
-    // 目前返回預設值
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 獲取今日班表
+    const todaySchedule = this.schedules[today];
+
+    if (!todaySchedule) {
+        console.warn('今天沒有班表資料');
+        return {
+            type: 'unknown',
+            shift: 'N/A',
+            date: today,
+            hasSchedule: false
+        };
+    }
+
     return {
-        type: 'work', // work 或 off
-        shift: 'N', // N/M/A/O 等
-        time: '20:30'
+        type: todaySchedule.type,  // 'work' 或 'off'
+        shift: todaySchedule.shift,  // 'N3', 'M1', 'O' 等
+        date: today,
+        hasSchedule: true
     };
 };
 
@@ -3970,33 +4159,69 @@ App.getProductsList = function() {
 };
 
 // 調用 Claude API 獲取推薦（通過 Vercel Function 代理）
-App.getClaudeRecommendation = async function(weather, schedule, products) {
+App.getClaudeRecommendation = async function(weather, schedule, timeSlot, products) {
     const settings = this.loadAiSettings();
 
-    const prompt = `你是專業的保養顧問。請根據以下資訊，推薦今日的保養流程。
+    // 根據班別確定今日所有時段
+    let timeSlots = [];
+    if (schedule.type === 'work') {
+        if (schedule.shift.toUpperCase().startsWith('N')) {
+            timeSlots = ['起床後 (20:30)', '上班前 (21:30)', '下班後 (08:00)', '睡前 (11:00)'];
+        } else if (schedule.shift.toUpperCase().startsWith('M')) {
+            timeSlots = ['起床後 (05:00)', '上班前 (06:00)', '下班後 (16:30)', '睡前 (22:00)'];
+        } else if (schedule.shift.toUpperCase().startsWith('A')) {
+            timeSlots = ['起床後 (12:00)', '上班前 (13:00)', '下班後 (23:30)', '睡前 (01:30)'];
+        }
+    } else {
+        // 休假日
+        timeSlots = ['起床後 (09:00)', '上午 (10:00)', '下午 (15:00)', '晚間 (19:00)', '睡前 (22:00)'];
+    }
 
-# 今日天氣
-- 地點：${weather.location}
+    const prompt = `你是專業的保養顧問 Sunny。請根據以下資訊，為今日每個時段推薦完整的保養流程。
+
+# 今日天氣 (${weather.location})
 - 溫度：${weather.temp}°C ~ ${weather.tempMax}°C
 - 天氣：${weather.wx}
 - 降雨機率：${weather.pop}%
 - 舒適度：${weather.ci}
 
-# 工作安排
-- 今天：${schedule.type === 'work' ? '上班日' : '休假日'}
+# 今日班表
+- 日期：${schedule.date}
+- 類型：${schedule.type === 'work' ? '上班日' : '休假日'}
 - 班別：${schedule.shift}
-- 作息時間：${schedule.time}
+- 當前時段：${timeSlot.label} (${timeSlot.description})
 
-# 可用產品
-${products}
+# 可用保養品
+${products || '（尚未設定產品清單）'}
 
-# 請提供以下建議：
-1. 今日保養重點（考慮天氣和工作）
-2. 需要特別注意的步驟
-3. 產品使用建議
-4. 時間安排建議
+# 任務要求
+請為今日的**每個時段**生成一個完整的保養流程，每個流程包含 5-8 個具體步驟。
 
-請以繁體中文回答，簡潔扼要。`;
+今日時段：
+${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
+
+# 輸出格式要求
+請嚴格按照以下 Markdown 格式輸出，每個時段一個流程：
+
+## 時段名稱
+- [ ] 步驟 1：具體動作描述
+- [ ] 步驟 2：具體動作描述
+- [ ] 步驟 3：具體動作描述
+...
+
+## 時段名稱
+- [ ] 步驟 1：具體動作描述
+...
+
+注意事項：
+1. 每個步驟必須是可執行的具體動作（例如："用溫水洗臉"、"塗抹保濕乳液"）
+2. 根據天氣條件調整產品選擇（高溫多補水、低溫多保濕、高降雨機率加強防護）
+3. 上班日的上班前流程要快速高效，休假日可以更精緻完整
+4. 使用可用產品清單中的產品，如無則提供一般性建議
+5. 請用繁體中文回答
+6. 務必使用 "- [ ]" 格式標記每個步驟（注意空格）
+
+開始生成保養流程：`;
 
     // 調用 Vercel Serverless Function 代理
     const response = await fetch('/api/ai-recommend', {
@@ -4041,7 +4266,178 @@ ${products}
 
 // 顯示每日推薦
 App.displayDailyRecommendation = function(recommendation) {
-    // TODO: 在首頁顯示推薦卡片
-    console.log('AI 推薦:', recommendation);
-    alert('AI 推薦：\n\n' + recommendation);
+    console.log('AI 推薦原始內容:', recommendation);
+
+    // 解析 Markdown 格式的推薦
+    const routines = this.parseAIRecommendation(recommendation);
+
+    if (routines.length === 0) {
+        console.warn('無法解析 AI 推薦');
+        alert('AI 推薦格式異常，請重新生成');
+        return;
+    }
+
+    // 儲存 AI 推薦到 localStorage
+    const today = new Date().toISOString().split('T')[0];
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+    aiRecommendations[today] = {
+        timestamp: Date.now(),
+        routines: routines,
+        checkedSteps: {} // 格式: { "routineIndex-stepIndex": true }
+    };
+    localStorage.setItem('ai_recommendations', JSON.stringify(aiRecommendations));
+
+    // 顯示推薦
+    this.renderAIRecommendations(routines);
+
+    // 顯示推薦區域
+    document.getElementById('aiRecommendations').style.display = 'block';
+
+    console.log('AI 推薦已顯示，共', routines.length, '個流程');
+};
+
+// 解析 AI 推薦的 Markdown 格式
+App.parseAIRecommendation = function(markdown) {
+    const routines = [];
+    const lines = markdown.split('\n');
+
+    let currentRoutine = null;
+
+    for (let line of lines) {
+        line = line.trim();
+
+        // 檢測標題行 (## 時段名稱)
+        if (line.startsWith('##')) {
+            // 如果之前有流程，先儲存
+            if (currentRoutine && currentRoutine.steps.length > 0) {
+                routines.push(currentRoutine);
+            }
+
+            // 開始新流程
+            const title = line.replace(/^##\s*/, '').trim();
+            currentRoutine = {
+                title: title,
+                steps: []
+            };
+        }
+        // 檢測步驟行 (- [ ] 步驟內容)
+        else if (line.match(/^-\s*\[\s*\]\s+/)) {
+            if (currentRoutine) {
+                const step = line.replace(/^-\s*\[\s*\]\s+/, '').trim();
+                currentRoutine.steps.push(step);
+            }
+        }
+    }
+
+    // 儲存最後一個流程
+    if (currentRoutine && currentRoutine.steps.length > 0) {
+        routines.push(currentRoutine);
+    }
+
+    return routines;
+};
+
+// 渲染 AI 推薦流程卡片
+App.renderAIRecommendations = function(routines) {
+    const container = document.getElementById('aiRoutinesContainer');
+    container.innerHTML = '';
+
+    const today = new Date().toISOString().split('T')[0];
+    const aiData = JSON.parse(localStorage.getItem('ai_recommendations') || '{}')[today];
+    const checkedSteps = aiData?.checkedSteps || {};
+
+    routines.forEach((routine, routineIndex) => {
+        const card = document.createElement('div');
+        card.className = 'ai-routine-card';
+        card.style.cssText = 'background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 15px;';
+
+        // 標題
+        const title = document.createElement('h4');
+        title.textContent = routine.title;
+        title.style.cssText = 'margin: 0 0 12px 0; color: #1f2937; font-size: 16px;';
+        card.appendChild(title);
+
+        // 步驟列表
+        const stepsList = document.createElement('div');
+        stepsList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+        routine.steps.forEach((step, stepIndex) => {
+            const stepKey = `${routineIndex}-${stepIndex}`;
+            const isChecked = checkedSteps[stepKey] || false;
+
+            const stepDiv = document.createElement('div');
+            stepDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 8px;';
+
+            // 勾選框
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = isChecked;
+            checkbox.style.cssText = 'margin-top: 3px; cursor: pointer; width: 16px; height: 16px;';
+            checkbox.addEventListener('change', () => {
+                this.toggleAIStepCheck(routineIndex, stepIndex, checkbox.checked);
+            });
+
+            // 步驟文字
+            const stepText = document.createElement('span');
+            stepText.textContent = step;
+            stepText.style.cssText = `flex: 1; color: ${isChecked ? '#9ca3af' : '#374151'}; text-decoration: ${isChecked ? 'line-through' : 'none'};`;
+
+            stepDiv.appendChild(checkbox);
+            stepDiv.appendChild(stepText);
+            stepsList.appendChild(stepDiv);
+        });
+
+        card.appendChild(stepsList);
+
+        // 完成進度
+        const completedCount = routine.steps.filter((_, idx) => checkedSteps[`${routineIndex}-${idx}`]).length;
+        const progress = document.createElement('div');
+        progress.style.cssText = 'margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;';
+        progress.textContent = `已完成 ${completedCount} / ${routine.steps.length} 步驟`;
+        card.appendChild(progress);
+
+        container.appendChild(card);
+    });
+};
+
+// 切換 AI 推薦步驟的勾選狀態
+App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
+    const today = new Date().toISOString().split('T')[0];
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+
+    if (!aiRecommendations[today]) {
+        console.warn('今日沒有 AI 推薦資料');
+        return;
+    }
+
+    const stepKey = `${routineIndex}-${stepIndex}`;
+    if (isChecked) {
+        aiRecommendations[today].checkedSteps[stepKey] = true;
+    } else {
+        delete aiRecommendations[today].checkedSteps[stepKey];
+    }
+
+    localStorage.setItem('ai_recommendations', JSON.stringify(aiRecommendations));
+
+    // 重新渲染以更新進度和樣式
+    this.renderAIRecommendations(aiRecommendations[today].routines);
+};
+
+// 載入今日 AI 推薦（頁面初始化時）
+App.loadTodayAIRecommendations = function() {
+    const today = new Date().toISOString().split('T')[0];
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+
+    if (aiRecommendations[today] && aiRecommendations[today].routines) {
+        console.log('載入今日已有的 AI 推薦');
+        this.renderAIRecommendations(aiRecommendations[today].routines);
+        document.getElementById('aiRecommendations').style.display = 'block';
+    } else {
+        console.log('今日尚未有 AI 推薦');
+        // 如果啟用了 AI，可以選擇自動生成
+        const settings = this.loadAiSettings();
+        if (settings.enableAI) {
+            console.log('AI 已啟用，可點擊「🤖 AI 設定」按鈕生成推薦');
+        }
+    }
 };
