@@ -27,6 +27,7 @@ const App = {
     timeSlots: [],
     reminders: [],
     history: [],
+    schedules: {}, // 班表數據：{ "2025-12-07": { shift: "N3", type: "work" } }
 
     // 初始化
     init() {
@@ -48,6 +49,7 @@ const App = {
             this.timeSlots = data.timeSlots || [];
             this.reminders = data.reminders || [];
             this.history = data.history || [];
+            this.schedules = data.schedules || {};
         }
     },
 
@@ -58,7 +60,8 @@ const App = {
             products: this.products,
             timeSlots: this.timeSlots,
             reminders: this.reminders,
-            history: this.history
+            history: this.history,
+            schedules: this.schedules
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
 
