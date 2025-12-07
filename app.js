@@ -3819,7 +3819,7 @@ App.getProductsList = function() {
     return products.join('\n');
 };
 
-// 調用 Claude API 獲取推薦
+// 調用 Claude API 獲取推薦（通過 Vercel Function 代理）
 App.getClaudeRecommendation = async function(weather, schedule, products) {
     const settings = this.loadAiSettings();
 
@@ -3848,29 +3848,25 @@ ${products}
 
 請以繁體中文回答，簡潔扼要。`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // 調用 Vercel Serverless Function 代理
+    const response = await fetch('/api/ai-recommend', {
         method: 'POST',
         headers: {
-            'x-api-key': settings.claudeApiKey,
-            'anthropic-version': '2023-06-01',
             'content-type': 'application/json'
         },
         body: JSON.stringify({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 1024,
-            messages: [{
-                role: 'user',
-                content: prompt
-            }]
+            prompt: prompt,
+            apiKey: settings.claudeApiKey
         })
     });
 
     if (!response.ok) {
-        throw new Error(`Claude API 錯誤: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API 錯誤: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.content[0].text;
+    return data.recommendation;
 };
 
 // 顯示每日推薦
