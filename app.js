@@ -4665,13 +4665,17 @@ App.displayDailyRecommendation = function(recommendation) {
     };
     localStorage.setItem('ai_recommendations', JSON.stringify(aiRecommendations));
 
+    console.log('💾 [AI儲存] 儲存日期:', today);
+    console.log('💾 [AI儲存] 儲存的流程數量:', routines.length);
+    console.log('💾 [AI儲存] 驗證儲存:', localStorage.getItem('ai_recommendations') ? '✅ 成功' : '❌ 失敗');
+
     // 顯示推薦
     this.renderAIRecommendations(routines);
 
     // 顯示推薦區域
     document.getElementById('aiRecommendations').style.display = 'block';
 
-    console.log('AI 推薦已顯示，共', routines.length, '個流程');
+    console.log('✅ [AI顯示] AI 推薦已顯示，共', routines.length, '個流程');
 };
 
 // 解析 AI 推薦的 Markdown 格式
@@ -4888,16 +4892,22 @@ App.loadTodayAIRecommendations = function() {
     const today = new Date().toISOString().split('T')[0];
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
 
+    console.log('🔍 [AI載入] 當前日期:', today);
+    console.log('🔍 [AI載入] localStorage 中的所有日期:', Object.keys(aiRecommendations));
+    console.log('🔍 [AI載入] 今日資料:', aiRecommendations[today]);
+
     if (aiRecommendations[today] && aiRecommendations[today].routines) {
-        console.log('載入今日已有的 AI 推薦');
+        console.log('✅ [AI載入] 載入今日已有的 AI 推薦，共', aiRecommendations[today].routines.length, '個流程');
         this.renderAIRecommendations(aiRecommendations[today].routines);
         document.getElementById('aiRecommendations').style.display = 'block';
+        console.log('✅ [AI載入] AI 推薦區域已顯示');
     } else {
-        console.log('今日尚未有 AI 推薦');
+        console.log('⚠️ [AI載入] 今日尚未有 AI 推薦');
+        console.log('⚠️ [AI載入] 可能原因：1) 尚未生成 2) 日期不匹配 3) 資料已過期');
         // 如果啟用了 AI，可以選擇自動生成
         const settings = this.loadAiSettings();
         if (settings.enableAI) {
-            console.log('AI 已啟用，可點擊「🤖 AI 設定」按鈕生成推薦');
+            console.log('💡 [AI載入] AI 已啟用，可點擊「🤖 AI 設定」按鈕生成推薦');
         }
     }
 };
