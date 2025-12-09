@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
     // 如果選擇 auto，根據 API Key 類型自動選擇模型
     if (!selectedModel || selectedModel === 'auto') {
-      selectedModel = isGemini ? 'gemini-1.5-flash' : 'claude-3-haiku-20240307';
+      selectedModel = isGemini ? 'gemini-2.0-flash' : 'claude-3-haiku-20240307';
       console.log('自動選擇模型:', selectedModel);
     }
 
@@ -64,7 +64,8 @@ export default async function handler(req, res) {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey  // 2025 年推薦的 header 方式
         },
         body: JSON.stringify(geminiRequestBody)
       });
