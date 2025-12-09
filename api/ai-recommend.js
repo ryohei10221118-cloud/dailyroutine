@@ -45,9 +45,18 @@ export default async function handler(req, res) {
       console.log('自動選擇模型:', selectedModel);
     }
 
+    // 🔧 Gemini 模型名稱映射（修復 API 版本問題）
+    const geminiModelMap = {
+      'gemini-1.5-flash': 'gemini-1.5-flash-latest',
+      'gemini-1.5-pro': 'gemini-1.5-pro-latest',
+      'gemini-2.0-flash-exp': 'gemini-2.0-flash-exp'
+    };
+
     if (isGemini || selectedModel.startsWith('gemini')) {
       // ========== Gemini API ==========
-      console.log('準備調用 Gemini API，模型:', selectedModel);
+      // 將選擇的模型映射到實際的 API 模型名稱
+      const actualModel = geminiModelMap[selectedModel] || selectedModel;
+      console.log('準備調用 Gemini API，模型:', actualModel, '(原始:', selectedModel, ')');
 
       const geminiRequestBody = {
         contents: [{
@@ -61,7 +70,7 @@ export default async function handler(req, res) {
         }
       };
 
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${actualModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
