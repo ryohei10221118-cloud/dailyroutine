@@ -3130,7 +3130,7 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         return recordDate === dateStr && record.completed;
     });
 
-    // 計算完成度：使用 AI 推薦系統
+    // 計算完成度：使用 AI 推薦系統（以步驟為單位）
     // ⚠️ 重要：必須使用與 AI 推薦完全相同的日期格式
     // AI 使用 ISO string (UTC)，所以這裡也要用 ISO string 來匹配
     const isoDateKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
@@ -3141,28 +3141,37 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
     const dayAI = aiRecommendations[isoDateKey];
 
-    let totalCount = 0;
-    let completedCount = dayRecords.length;
+    let totalSteps = 0;
+    let completedSteps = 0;
 
     console.log(`📅 日曆計算 ${localDateKey} (ISO: ${isoDateKey}):`, {
         hasAI: !!dayAI,
         routinesCount: dayAI?.routines?.length,
-        completedCount,
         allKeys: Object.keys(aiRecommendations)
     });
 
     if (dayAI && dayAI.routines && dayAI.routines.length > 0) {
-        // 如果有 AI 推薦，使用 AI 推薦的流程數量
-        totalCount = dayAI.routines.length;
-        console.log(`✅ 使用 AI 推薦數量: ${totalCount}`);
+        // 🔥 以步驟數計算完成度（不是流程數！）
+        dayAI.routines.forEach((routine, routineIdx) => {
+            totalSteps += routine.steps.length;
+            // 計算已完成的步驟數
+            routine.steps.forEach((step, stepIdx) => {
+                const stepKey = `${routineIdx}-${stepIdx}`;
+                if (dayAI.checkedSteps && dayAI.checkedSteps[stepKey]) {
+                    completedSteps++;
+                }
+            });
+        });
+        console.log(`✅ 使用 AI 推薦步驟數: 總共 ${totalSteps} 步，已完成 ${completedSteps} 步`);
     } else {
-        // 如果沒有 AI 推薦，預設為 2 個時段（上班前+睡前 或 起床+睡前）
-        totalCount = 2;
-        console.log(`⚠️ 沒有 AI 推薦，使用預設值: ${totalCount}`);
+        // 如果沒有 AI 推薦，使用傳統完成記錄計算
+        totalSteps = 2; // 預設 2 個時段
+        completedSteps = dayRecords.length;
+        console.log(`⚠️ 沒有 AI 推薦，使用傳統記錄: ${completedSteps}/${totalSteps}`);
     }
 
-    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-    console.log(`📊 完成度: ${completedCount}/${totalCount} = ${completionRate}%`);
+    const completionRate = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+    console.log(`📊 完成度: ${completedSteps}/${totalSteps} = ${completionRate}%`);
 
     const dayDiv = document.createElement('div');
     dayDiv.className = 'calendar-day';
@@ -3175,7 +3184,7 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
         dayDiv.classList.add('today');
     }
 
-    if (completedCount > 0) {
+    if (completedSteps > 0) {
         if (completionRate === 100) {
             dayDiv.classList.add('completed');
         } else {
@@ -3189,7 +3198,7 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
 
     let dayHTML = `<div class="day-number">${dayNum}${scheduleEmoji ? ` <span style="font-size: 10px;">${scheduleEmoji}</span>` : ''}</div>`;
 
-    if (completedCount > 0) {
+    if (completedSteps > 0) {
         if (completionRate === 100) {
             dayHTML += `<div class="day-icon">🐾</div>`;
         } else {
@@ -3724,6 +3733,7 @@ App.showAiSettingsModal = function() {
     const settings = this.loadAiSettings();
 
     document.getElementById('claudeApiKey').value = settings.claudeApiKey || '';
+    document.getElementById('aiModel').value = settings.aiModel || 'auto';
     document.getElementById('weatherApiKey').value = settings.weatherApiKey || '';
     document.getElementById('userLocation').value = settings.userLocation || '';
     document.getElementById('googleSheetUrl').value = settings.googleSheetUrl || '';
@@ -3738,6 +3748,7 @@ App.showAiSettingsModal = function() {
 App.saveAiSettings = async function() {
     const settings = {
         claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
+        aiModel: document.getElementById('aiModel').value,
         weatherApiKey: document.getElementById('weatherApiKey').value.trim(),
         userLocation: document.getElementById('userLocation').value,
         googleSheetUrl: document.getElementById('googleSheetUrl').value.trim(),
@@ -4476,7 +4487,8 @@ ${timeSlots.map((slot, i) => `${i + 1}. ${slot}`).join('\n')}
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    apiKey: settings.claudeApiKey
+                    apiKey: settings.claudeApiKey,
+                    model: settings.aiModel || 'auto'
                 })
             });
 

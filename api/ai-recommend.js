@@ -19,14 +19,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, apiKey } = req.body;
+    const { prompt, apiKey, model } = req.body;
 
     // 驗證參數
     if (!prompt || !apiKey) {
       return res.status(400).json({ error: '缺少必要參數' });
     }
 
-    console.log('收到 AI 推薦請求');
+    console.log('收到 AI 推薦請求，模型:', model || 'auto');
 
     // 🔍 自動識別 API 類型
     // Claude API key 格式: sk-ant-xxx
@@ -37,10 +37,17 @@ export default async function handler(req, res) {
     console.log('API 類型:', isGemini ? 'Gemini' : isClaude ? 'Claude' : '未知');
 
     let response, data, recommendation;
+    let selectedModel = model;
 
-    if (isGemini) {
+    // 如果選擇 auto，根據 API Key 類型自動選擇模型
+    if (!selectedModel || selectedModel === 'auto') {
+      selectedModel = isGemini ? 'gemini-1.5-flash' : 'claude-3-haiku-20240307';
+      console.log('自動選擇模型:', selectedModel);
+    }
+
+    if (isGemini || selectedModel.startsWith('gemini')) {
       // ========== Gemini API ==========
-      console.log('準備調用 Gemini API...');
+      console.log('準備調用 Gemini API，模型:', selectedModel);
 
       const geminiRequestBody = {
         contents: [{
@@ -54,7 +61,7 @@ export default async function handler(req, res) {
         }
       };
 
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -92,12 +99,12 @@ export default async function handler(req, res) {
         });
       }
 
-    } else if (isClaude) {
+    } else if (isClaude || selectedModel.startsWith('claude')) {
       // ========== Claude API ==========
-      console.log('準備調用 Claude API...');
+      console.log('準備調用 Claude API，模型:', selectedModel);
 
       const claudeRequestBody = {
-        model: 'claude-3-haiku-20240307',
+        model: selectedModel,
         max_tokens: 2048,
         messages: [{
           role: 'user',
