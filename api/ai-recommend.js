@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
     // 如果選擇 auto，根據 API Key 類型自動選擇模型
     if (!selectedModel || selectedModel === 'auto') {
-      selectedModel = isGemini ? 'gemini-1.5-flash-002' : 'claude-3-haiku-20240307';
+      selectedModel = isGemini ? 'gemini-1.5-flash' : 'claude-3-haiku-20240307';
       console.log('自動選擇模型:', selectedModel);
     }
 
