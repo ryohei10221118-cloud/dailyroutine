@@ -4236,6 +4236,10 @@ App.getDailyAIRecommendation = async function() {
         }
 
         alert(userMessage);
+
+        // 🔥 重要：即使 API 失敗，也要嘗試載入已保存的推薦
+        console.log('⚠️ [API失敗] 嘗試載入已保存的推薦...');
+        this.loadTodayAIRecommendations();
     }
 };
 
