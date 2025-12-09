@@ -41,22 +41,13 @@ export default async function handler(req, res) {
 
     // 如果選擇 auto，根據 API Key 類型自動選擇模型
     if (!selectedModel || selectedModel === 'auto') {
-      selectedModel = isGemini ? 'gemini-1.5-flash' : 'claude-3-haiku-20240307';
+      selectedModel = isGemini ? 'gemini-1.5-flash-002' : 'claude-3-haiku-20240307';
       console.log('自動選擇模型:', selectedModel);
     }
 
-    // 🔧 Gemini 模型名稱映射（修復 API 版本問題）
-    const geminiModelMap = {
-      'gemini-1.5-flash': 'gemini-1.5-flash-latest',
-      'gemini-1.5-pro': 'gemini-1.5-pro-latest',
-      'gemini-2.0-flash-exp': 'gemini-2.0-flash-exp'
-    };
-
     if (isGemini || selectedModel.startsWith('gemini')) {
       // ========== Gemini API ==========
-      // 將選擇的模型映射到實際的 API 模型名稱
-      const actualModel = geminiModelMap[selectedModel] || selectedModel;
-      console.log('準備調用 Gemini API，模型:', actualModel, '(原始:', selectedModel, ')');
+      console.log('準備調用 Gemini API，模型:', selectedModel);
 
       const geminiRequestBody = {
         contents: [{
@@ -70,7 +61,7 @@ export default async function handler(req, res) {
         }
       };
 
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${actualModel}:generateContent?key=${apiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
