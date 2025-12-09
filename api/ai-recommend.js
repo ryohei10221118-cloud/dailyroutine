@@ -64,8 +64,7 @@ export default async function handler(req, res) {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey  // 2025 年推薦的 header 方式
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(geminiRequestBody)
       });
