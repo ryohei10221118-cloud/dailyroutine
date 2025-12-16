@@ -2,6 +2,14 @@
 // 保養提醒助手 - 主要應用邏輯
 // ==========================================
 
+// 🔧 輔助函數：獲取本地日期字串（YYYY-MM-DD），避免時區問題
+function getLocalDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // 全局狀態管理
 const App = {
     currentTab: 'today',
@@ -357,77 +365,142 @@ const App = {
     // 創建預設產品
     createDefaultProducts() {
         this.products = {
-            'cleanser': {
-                id: 'cleanser',
-                name: '洗面乳',
-                type: 'cleanser',
-                icon: '🧼',
-                usage: '溫水打濕臉部，取適量輕柔按摩，避免過度摩擦'
-            },
-            'tea-tree-pad': {
-                id: 'tea-tree-pad',
-                name: '綠大罐 茶樹 Toner Pad',
+            'visual-ade-teatree-pad': {
+                id: 'visual-ade-teatree-pad',
+                name: 'VISUAL ADE 綠茶樹棉片',
+                nameEn: 'VISUAL ADE Visual Green Teatree Toner Pad',
                 type: 'pad',
+                area: 't-zone',
                 icon: '🌿',
-                usage: '全臉或以 T 字為主，輕輕擦拭'
+                appearance: '大霧白圓罐＋深綠蓋',
+                usage: 'T 字部位或全臉輕輕擦拭，幫助控油鎮靜',
+                isIrritating: true,  // 茶樹屬於刺激性成分
+                tags: ['控油', '鎮靜', 'T字調理']
             },
-            'bha-pad': {
-                id: 'bha-pad',
-                name: '紫色 水楊酸 Pad',
-                type: 'pad',
-                icon: '💜',
-                usage: '只擦 T 字、下巴、粉刺區，等待 5-10 分鐘',
-                frequency: '一週兩次'
-            },
-            'ssuk-toner': {
-                id: 'ssuk-toner',
-                name: '白綠瓶 Ssuk Latte Cream Toner',
+            'danhana-ssuk-toner': {
+                id: 'danhana-ssuk-toner',
+                name: 'DANHANA 艾草奶霜化妝水',
+                nameEn: 'DANHANA Ssuk Latte Cream Toner',
                 type: 'toner',
+                area: 'full-face',
                 icon: '🍶',
-                usage: '1-2 層，輕拍至吸收'
+                appearance: '高瓶，上白下綠',
+                usage: '1-2 層，輕拍至吸收，作為保養打底',
+                tags: ['保濕', '舒緩', '打底']
             },
-            'centella-essence': {
-                id: 'centella-essence',
-                name: '綠滴管 積雪草精華',
+            'sinsuru-sulfur-essence': {
+                id: 'sinsuru-sulfur-essence',
+                name: 'SINSURU 硫磺 82 精華',
+                nameEn: 'SINSURU Sulfur 82 Essence',
+                type: 'spot-treatment',
+                area: 'spot',
+                icon: '💛',
+                appearance: '小透明黃瓶＋綠蓋',
+                usage: '局部點塗於痘痘處，不要全臉使用',
+                isIrritating: true,  // 硫磺是刺激性成分
+                needWait: true,
+                tags: ['痘痘調理', '控油', '局部使用']
+            },
+            'aroh-centella-serum': {
+                id: 'aroh-centella-serum',
+                name: 'àroh 積雪草舒緩精華',
+                nameEn: 'àroh Centella Cooling Serum',
                 type: 'essence',
+                area: 'full-face',
                 icon: '💧',
-                usage: '2-3 滴，均勻塗抹全臉'
+                appearance: '霧綠瓶＋白色滴管',
+                usage: '2-3 滴，均勻塗抹全臉，幫助舒緩降溫',
+                tags: ['舒緩', '降溫', '泛紅修護']
             },
-            'moisturizer': {
-                id: 'moisturizer',
-                name: '乳液 / 面霜',
+            'la-promiskin-reishi-cream': {
+                id: 'la-promiskin-reishi-cream',
+                name: 'La Promiskin 靈芝肌泌能量霜',
+                nameEn: 'La Promiskin Reishi Energy Cream',
                 type: 'cream',
-                icon: '🧴',
-                usage: '黃豆大小，由內而外塗抹'
+                area: 'full-face',
+                icon: '✨',
+                appearance: '金色水晶感圓罐',
+                usage: '黃豆大小，由內而外塗抹，加強修護屏障',
+                tags: ['修護', '滋潤', '屏障支持']
+            },
+            'la-promiskin-facial-oil': {
+                id: 'la-promiskin-facial-oil',
+                name: 'La Promiskin 精華油',
+                nameEn: 'La Promiskin Facial Oil',
+                type: 'facial-oil',
+                area: 'full-face',
+                icon: '🌰',
+                appearance: '玻璃滴管瓶',
+                usage: '1-2 滴混合乳霜或單獨使用，非每日必需',
+                tags: ['滋潤', '鎖水', '非每日']
+            },
+            'eye-cream': {
+                id: 'eye-cream',
+                name: '眼霜（暫名）',
+                nameEn: 'Eye Cream (Name TBD)',
+                type: 'eye-cream',
+                area: 'eye-area',
+                icon: '👁️',
+                appearance: '小容量眼霜包裝',
+                usage: '米粒大小，輕點於眼周，避免拉扯',
+                notes: '品牌已確認，未提供完整品名',
+                tags: ['眼周保濕', '細紋預防']
             },
             'sunscreen': {
                 id: 'sunscreen',
-                name: '白瓶 Feld apotheke 防曬 SPF42 PA++++',
+                name: '防曬乳（暫名）',
+                nameEn: 'Sunscreen (Name TBD)',
                 type: 'sunscreen',
+                area: 'full-face',
                 icon: '☀️',
-                usage: '臉＋脖子兩指長的量，出門前 15 分鐘擦'
+                appearance: '防曬軟管',
+                usage: '臉＋脖子兩指長的量，出門前 15 分鐘擦',
+                notes: '實品已有，未提供完整商品名稱',
+                tags: ['防曬', '白天使用']
             },
-            'mask-bright': {
-                id: 'mask-bright',
-                name: 'Mediheal 玫瑰面膜 / 黃色軟面膜',
+            'mediheal-sheet-mask': {
+                id: 'mediheal-sheet-mask',
+                name: 'MEDIHEAL 片狀面膜（修護／保濕）',
+                nameEn: 'MEDIHEAL Sheet Mask',
                 type: 'mask',
+                area: 'full-face',
                 icon: '🌸',
-                usage: '10-15 分鐘，軟面膜洗掉，片狀拍吸收'
+                appearance: '藍綠色系包裝',
+                usage: '15-20 分鐘，取下後輕拍精華液至吸收',
+                tags: ['急救補水', '修護']
             },
-            'mask-calm': {
-                id: 'mask-calm',
-                name: 'Mediheal 積雪草面膜 / 綠色軟面膜',
+            'visual-ade-green-mask': {
+                id: 'visual-ade-green-mask',
+                name: 'VISUAL ADE 綠色軟面膜（控油鎮靜）',
+                nameEn: 'VISUAL ADE Green Soft Ice Cream Pack',
                 type: 'mask',
+                area: 't-zone',
                 icon: '🌱',
-                usage: '10-15 分鐘，鎮定修護'
+                appearance: '綠色罐',
+                usage: 'T 字或全臉厚塗，10-15 分鐘後洗掉',
+                tags: ['控油', '鎮靜', '毛孔調理']
             },
-            'mask-pore': {
-                id: 'mask-pore',
-                name: '紫色毛孔軟面膜',
+            'visual-ade-purple-mask': {
+                id: 'visual-ade-purple-mask',
+                name: 'VISUAL ADE 紫色軟面膜（保濕舒緩）',
+                nameEn: 'VISUAL ADE Purple Soft Ice Cream Pack',
                 type: 'mask',
+                area: 'full-face',
                 icon: '💜',
-                usage: 'T 字部位厚塗，10-15 分鐘後洗掉',
-                frequency: '一週最多一次'
+                appearance: '紫色罐',
+                usage: '全臉厚塗，10-15 分鐘後洗掉，適合敏感期使用',
+                tags: ['保濕', '舒緩', '敏感期']
+            },
+            'visual-ade-yellow-mask': {
+                id: 'visual-ade-yellow-mask',
+                name: 'VISUAL ADE 黃色軟面膜（亮白提亮）',
+                nameEn: 'VISUAL ADE Yellow Soft Ice Cream Pack',
+                type: 'mask',
+                area: 'full-face',
+                icon: '💛',
+                appearance: '黃色罐',
+                usage: '全臉厚塗，10-15 分鐘後洗掉',
+                tags: ['提亮', '改善暗沉']
             }
         };
 
@@ -2130,6 +2203,64 @@ App.checkAndSendNotifications = function() {
             localStorage.setItem('sentNotifications', JSON.stringify(sentToday));
         }
     });
+
+    // 🔥 檢查自訂提醒（reminders）
+    if (!sentToday.reminders) sentToday.reminders = [];
+
+    this.reminders.forEach(reminder => {
+        // 檢查是否已發送過此提醒
+        if (sentToday.reminders.includes(reminder.id)) return;
+
+        // 檢查提醒類型
+        if (reminder.type === 'recurring') {
+            // 週期性提醒：檢查今天是否在提醒日期中
+            if (!reminder.weekdays.includes(currentDay)) return;
+        } else if (reminder.type === 'oneTime') {
+            // 一次性提醒：檢查日期是否匹配
+            const reminderDate = new Date(reminder.date).toDateString();
+            if (reminderDate !== today) return;
+        }
+
+        // 計算提醒時間（包含提前通知時間）
+        const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number);
+        const advanceMinutes = reminder.advanceMinutes || 0;
+        const notificationTime = new Date(now);
+        notificationTime.setHours(reminderHour, reminderMinute - advanceMinutes, 0, 0);
+
+        const reminderTime = new Date(now);
+        reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+
+        const currentTimeMs = now.getTime();
+        const notificationTimeMs = notificationTime.getTime();
+
+        // 如果當前時間在通知時間和提醒時間之間（或之後1分鐘內），發送通知
+        if (currentTimeMs >= notificationTimeMs && currentTimeMs <= reminderTime.getTime() + 60000) {
+            // 發送通知
+            const notificationTitle = advanceMinutes > 0
+                ? `⏰ 提前 ${advanceMinutes} 分鐘提醒`
+                : `⏰ 提醒`;
+
+            new Notification(notificationTitle, {
+                body: reminder.text,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `reminder-${reminder.id}`,
+                requireInteraction: false,
+                vibrate: [200, 100, 200]
+            });
+
+            // 記錄已發送
+            sentToday.reminders.push(reminder.id);
+            localStorage.setItem('sentNotifications', JSON.stringify(sentToday));
+
+            // 如果是一次性提醒，發送後刪除
+            if (reminder.type === 'oneTime') {
+                this.reminders = this.reminders.filter(r => r.id !== reminder.id);
+                this.saveData();
+                this.updateRemindersView();
+            }
+        }
+    });
 };
 
 // 初始化應用
@@ -3131,20 +3262,16 @@ App.createCalendarDay = function(grid, dayNum, date, isOtherMonth, isToday = fal
     });
 
     // 計算完成度：使用 AI 推薦系統（以步驟為單位）
-    // ⚠️ 重要：必須使用與 AI 推薦完全相同的日期格式
-    // AI 使用 ISO string (UTC)，所以這裡也要用 ISO string 來匹配
-    const isoDateKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
-
-    // 同時也準備班表用的本地日期格式
-    const localDateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    // ✅ 使用本地日期格式，避免時區問題
+    const localDateKey = getLocalDateString(date);
 
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
-    const dayAI = aiRecommendations[isoDateKey];
+    const dayAI = aiRecommendations[localDateKey];
 
     let totalSteps = 0;
     let completedSteps = 0;
 
-    console.log(`📅 日曆計算 ${localDateKey} (ISO: ${isoDateKey}):`, {
+    console.log(`📅 日曆計算 ${localDateKey}:`, {
         hasAI: !!dayAI,
         routinesCount: dayAI?.routines?.length,
         allKeys: Object.keys(aiRecommendations)
@@ -4354,7 +4481,7 @@ App.getClaudeRecommendation = async function(weather, schedule, timeSlot, produc
     const preferenceText = settings.skincarePreference ? preferenceMap[settings.skincarePreference] : '未設定';
 
     // 獲取今日已完成的流程（從AI推薦）
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
     const todayData = aiRecommendations[today];
     let completedRoutinesText = '無';
@@ -4672,7 +4799,7 @@ App.displayDailyRecommendation = function(recommendation) {
     }
 
     // 儲存 AI 推薦到 localStorage
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
     aiRecommendations[today] = {
         timestamp: Date.now(),
@@ -4740,7 +4867,7 @@ App.renderAIRecommendations = function(routines) {
     const container = document.getElementById('aiRoutinesContainer');
     container.innerHTML = '';
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const aiData = JSON.parse(localStorage.getItem('ai_recommendations') || '{}')[today];
     const checkedSteps = aiData?.checkedSteps || {};
 
@@ -4833,7 +4960,7 @@ App.renderAIRecommendations = function(routines) {
 
 // 切換 AI 推薦步驟的勾選狀態
 App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
 
     if (!aiRecommendations[today]) {
@@ -4905,7 +5032,7 @@ App.toggleAIStepCheck = function(routineIndex, stepIndex, isChecked) {
 
 // 載入今日 AI 推薦（頁面初始化時）
 App.loadTodayAIRecommendations = function() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
 
     console.log('🔍 [AI載入] 當前日期:', today);
@@ -4920,10 +5047,16 @@ App.loadTodayAIRecommendations = function() {
     } else {
         console.log('⚠️ [AI載入] 今日尚未有 AI 推薦');
         console.log('⚠️ [AI載入] 可能原因：1) 尚未生成 2) 日期不匹配 3) 資料已過期');
-        // 如果啟用了 AI，可以選擇自動生成
+        // 🔥 如果啟用了 AI 且有 API Key，自動生成今日推薦
         const settings = this.loadAiSettings();
-        if (settings.enableAI) {
-            console.log('💡 [AI載入] AI 已啟用，可點擊「🤖 AI 設定」按鈕生成推薦');
+        if (settings.enableAI && settings.claudeApiKey) {
+            console.log('🤖 [AI載入] AI 已啟用且有 API Key，自動生成今日推薦...');
+            // 延遲500ms後自動生成，避免初始化時阻塞UI
+            setTimeout(() => {
+                this.getDailyAIRecommendation();
+            }, 500);
+        } else {
+            console.log('💡 [AI載入] 請點擊「🤖 AI 設定」啟用並配置 AI 功能');
         }
     }
 };
