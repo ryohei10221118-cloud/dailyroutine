@@ -4884,6 +4884,13 @@ App.displayDailyRecommendation = function(recommendation) {
     document.getElementById('aiRecommendations').style.display = 'block';
 
     console.log('✅ [AI顯示] AI 推薦已顯示，共', routines.length, '個流程');
+
+    // 🔥 更新推送訂閱（將 AI 推薦流程的通知時間同步到後端）
+    if (typeof PushManager !== 'undefined') {
+        PushManager.updateSubscription().catch(err => {
+            console.log('⚠️ 更新推送訂閱失敗:', err);
+        });
+    }
 };
 
 // 解析 AI 推薦的 Markdown 格式

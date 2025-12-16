@@ -68,6 +68,27 @@ const PushManager = {
       const timeSlots = JSON.parse(localStorage.getItem('skincareData') || '{}').timeSlots || [];
       const reminders = JSON.parse(localStorage.getItem('skincareData') || '{}').reminders || [];
 
+      // 🔥 取得 AI 推薦流程（包含通知時間）
+      const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+      const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD 格式
+      const todayAI = aiRecommendations[today];
+
+      // 提取有通知時間的 AI 流程
+      const aiRoutines = [];
+      if (todayAI && todayAI.routines) {
+        todayAI.routines.forEach((routine, index) => {
+          if (routine.notificationTime) {
+            aiRoutines.push({
+              id: `ai-routine-${index}`,
+              title: routine.title,
+              time: routine.notificationTime,
+              date: today,
+              index: index
+            });
+          }
+        });
+      }
+
       const response = await fetch(`${this.apiEndpoint}/subscribe`, {
         method: 'POST',
         headers: {
@@ -76,7 +97,8 @@ const PushManager = {
         body: JSON.stringify({
           subscription: subscription.toJSON(),
           timeSlots,
-          reminders
+          reminders,
+          aiRoutines // 🔥 新增 AI 推薦流程
         })
       });
 

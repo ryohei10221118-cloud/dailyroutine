@@ -114,7 +114,7 @@ module.exports = async (req, res) => {
         if (!dataStr) continue;
 
         const data = JSON.parse(dataStr);
-        const { subscription, timeSlots = [], reminders = [] } = data;
+        const { subscription, timeSlots = [], reminders = [], aiRoutines = [] } = data;
 
         // 檢查時段提醒
         for (const slot of timeSlots) {
@@ -185,6 +185,38 @@ module.exports = async (req, res) => {
 
             sentCount++;
             console.log(`✅ Sent notification for reminder: ${reminder.title} at ${currentTime} (scheduled: ${reminder.time}, advance: ${reminder.advanceMinutes || 0}min)`);
+          }
+        }
+
+        // 🔥 檢查 AI 推薦流程
+        const today = getTodayDate();
+        for (const aiRoutine of aiRoutines) {
+          // 只檢查今天的 AI 推薦流程
+          if (aiRoutine.date !== today) continue;
+
+          // 計算通知時間（提前 5 分鐘）
+          const notifyTime = getNotificationTime(aiRoutine.time, 5);
+
+          if (notifyTime === currentTime) {
+            await webpush.sendNotification(
+              subscription,
+              JSON.stringify({
+                title: `⏰ ${aiRoutine.time} 保養提醒`,
+                body: `該執行「${aiRoutine.title}」囉！`,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `ai-routine-${aiRoutine.id}`,
+                data: {
+                  url: '/',
+                  type: 'ai-routine',
+                  id: aiRoutine.id,
+                  index: aiRoutine.index
+                }
+              })
+            );
+
+            sentCount++;
+            console.log(`✅ Sent notification for AI routine: ${aiRoutine.title} at ${currentTime} (scheduled: ${aiRoutine.time})`);
           }
         }
 

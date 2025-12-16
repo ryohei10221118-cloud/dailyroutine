@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { subscription, timeSlots, reminders } = req.body;
+    const { subscription, timeSlots, reminders, aiRoutines } = req.body;
 
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: 'Invalid subscription' });
@@ -34,6 +34,7 @@ module.exports = async (req, res) => {
       subscription,
       timeSlots: timeSlots || [],
       reminders: reminders || [],
+      aiRoutines: aiRoutines || [], // 🔥 新增 AI 推薦流程
       updatedAt: new Date().toISOString()
     };
 
