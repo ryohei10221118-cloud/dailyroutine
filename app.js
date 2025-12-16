@@ -2204,6 +2204,71 @@ App.checkAndSendNotifications = function() {
         }
     });
 
+    // 🔥 檢查 AI 推薦流程的通知
+    const todayStr = getLocalDateString();
+    const aiRecommendations = JSON.parse(localStorage.getItem('ai_recommendations') || '{}');
+    const todayAI = aiRecommendations[todayStr];
+
+    if (!sentToday.aiRoutines) sentToday.aiRoutines = [];
+
+    if (todayAI && todayAI.routines) {
+        todayAI.routines.forEach((routine, routineIndex) => {
+            // 檢查是否有通知時間
+            if (!routine.notificationTime) return;
+
+            // 檢查是否已發送過此通知
+            const routineKey = `${todayStr}-${routineIndex}`;
+            if (sentToday.aiRoutines.includes(routineKey)) return;
+
+            // 解析通知時間
+            const [routineHour, routineMinute] = routine.notificationTime.split(':').map(Number);
+
+            // 設定通知時間（提前 5 分鐘）
+            const notificationTime = new Date(now);
+            notificationTime.setHours(routineHour, routineMinute - 5, 0, 0);
+
+            const routineTime = new Date(now);
+            routineTime.setHours(routineHour, routineMinute, 0, 0);
+
+            const currentTimeMs = now.getTime();
+            const notificationTimeMs = notificationTime.getTime();
+
+            // 如果當前時間在通知時間和流程時間之間（或之後1分鐘內），發送通知
+            if (currentTimeMs >= notificationTimeMs && currentTimeMs <= routineTime.getTime() + 60000) {
+                // 檢查流程是否已完成
+                const totalSteps = routine.steps.length;
+                let completedSteps = 0;
+                for (let stepIdx = 0; stepIdx < totalSteps; stepIdx++) {
+                    const stepKey = `${routineIndex}-${stepIdx}`;
+                    if (todayAI.checkedSteps && todayAI.checkedSteps[stepKey]) {
+                        completedSteps++;
+                    }
+                }
+
+                const isCompleted = completedSteps === totalSteps;
+
+                // 只有未完成的流程才發送通知
+                if (!isCompleted) {
+                    // 發送通知
+                    new Notification(`⏰ ${routine.notificationTime} 保養提醒`, {
+                        body: `該執行「${routine.title}」囉！`,
+                        icon: '/icon-192.png',
+                        badge: '/icon-192.png',
+                        tag: `ai-routine-${routineIndex}`,
+                        requireInteraction: false,
+                        vibrate: [200, 100, 200]
+                    });
+
+                    console.log(`📢 發送 AI 流程通知: ${routine.title} (${routine.notificationTime})`);
+
+                    // 記錄已發送
+                    sentToday.aiRoutines.push(routineKey);
+                    localStorage.setItem('sentNotifications', JSON.stringify(sentToday));
+                }
+            }
+        });
+    }
+
     // 🔥 檢查自訂提醒（reminders）
     if (!sentToday.reminders) sentToday.reminders = [];
 
@@ -4840,9 +4905,30 @@ App.parseAIRecommendation = function(markdown) {
 
             // 開始新流程
             const title = line.replace(/^##\s*/, '').trim();
+
+            // 🔥 從標題中提取時間資訊（例如「起床後 (20:30)」）
+            let notificationTime = null;
+            const timeMatch = title.match(/\((\d{1,2}:\d{2})\)/);
+            if (timeMatch) {
+                notificationTime = timeMatch[1];
+            } else {
+                // 如果標題沒有時間，根據關鍵字推斷預設時間
+                const lowerTitle = title.toLowerCase();
+                if (lowerTitle.includes('起床') || lowerTitle.includes('早上') || lowerTitle.includes('上班前')) {
+                    notificationTime = '20:30'; // 預設起床時間（夜班作息）
+                } else if (lowerTitle.includes('睡前') || lowerTitle.includes('晚上') || lowerTitle.includes('睡覺前')) {
+                    notificationTime = '10:30'; // 預設睡前時間（夜班作息）
+                } else if (lowerTitle.includes('下午') || lowerTitle.includes('午後')) {
+                    notificationTime = '15:00';
+                } else if (lowerTitle.includes('中午')) {
+                    notificationTime = '12:00';
+                }
+            }
+
             currentRoutine = {
                 title: title,
-                steps: []
+                steps: [],
+                notificationTime: notificationTime // 🔥 新增通知時間
             };
         }
         // 檢測步驟行 (- [ ] 步驟內容)
