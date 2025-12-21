@@ -2049,3 +2049,117 @@ h3 {
     background: #e8e5ed;
     transform: translateY(-1px);
 }
+
+/* 皮膚狀況記錄卡片 */
+.skin-observation-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 15px 0;
+    box-shadow: var(--shadow);
+}
+
+.skin-observation-content {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.skin-observation-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.skin-condition-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.skin-condition-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    user-select: none;
+}
+
+.skin-condition-tag:hover {
+    background: #e8e5ed;
+    transform: translateY(-1px);
+}
+
+.skin-condition-tag input[type="checkbox"] {
+    display: none;
+}
+
+.skin-condition-tag input[type="checkbox"]:checked + span {
+    font-weight: 600;
+}
+
+.skin-condition-tag:has(input:checked) {
+    background: linear-gradient(135deg, var(--primary-light), var(--accent-pink));
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-primary-small {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-primary-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(155, 135, 181, 0.3);
+}
+
+.btn-primary-small:active {
+    transform: translateY(0);
+}
+
+.recent-observation-item {
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.recent-observation-item .date {
+    color: var(--text-secondary);
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.recent-observation-item .conditions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.recent-observation-item .condition-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: white;
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+.recent-observation-item .notes {
+    margin-top: 6px;
+    color: var(--text-primary);
+    font-style: italic;
+}

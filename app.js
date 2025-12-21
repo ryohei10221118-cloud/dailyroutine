@@ -36,6 +36,7 @@ const App = {
     reminders: [],
     history: [],
     schedules: {}, // 班表數據：{ "2025-12-07": { shift: "N3", type: "work" } }
+    skinObservations: {}, // 皮膚觀察記錄：{ "2025-12-21": { conditions: [], notes: "", timestamp: ... } }
 
     // 初始化
     init() {
@@ -46,6 +47,7 @@ const App = {
         this.checkNotificationPermission();
         this.scheduleNotifications();
         this.loadTodayAIRecommendations(); // 載入今日 AI 推薦
+        this.loadTodaySkinObservation(); // 載入今日皮膚觀察
     },
 
     // 載入本地資料
@@ -59,6 +61,7 @@ const App = {
             this.reminders = data.reminders || [];
             this.history = data.history || [];
             this.schedules = data.schedules || {};
+            this.skinObservations = data.skinObservations || {};
         }
     },
 
@@ -70,7 +73,8 @@ const App = {
             timeSlots: this.timeSlots,
             reminders: this.reminders,
             history: this.history,
-            schedules: this.schedules
+            schedules: this.schedules,
+            skinObservations: this.skinObservations
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
 
@@ -725,6 +729,10 @@ App.setupEventListeners = function() {
     document.getElementById('selectAllProductsBtn')?.addEventListener('click', () => this.selectAllProducts());
     document.getElementById('deleteSelectedProductsBtn')?.addEventListener('click', () => this.deleteSelectedProducts());
     document.getElementById('cancelProductSelectBtn')?.addEventListener('click', () => this.cancelProductSelectMode());
+
+    // 皮膚觀察記錄
+    document.getElementById('toggleSkinObservation')?.addEventListener('click', () => this.toggleSkinObservationPanel());
+    document.getElementById('saveSkinObservationBtn')?.addEventListener('click', () => this.saveSkinObservation());
 };
 
 App.switchTab = function(tabName) {
@@ -4563,6 +4571,31 @@ App.getClaudeRecommendation = async function(weather, schedule, timeSlot, produc
         }
     }
 
+    // 🔥 獲取最近的皮膚觀察記錄
+    const recentSkinObservations = this.getRecentSkinObservations(3);
+    let skinObservationText = '';
+    if (recentSkinObservations.length > 0) {
+        const conditionMap = {
+            'oily': '出油',
+            'dry': '乾燥',
+            'redness': '泛紅',
+            'acne': '長痘',
+            'sensitive': '敏感',
+            'tight': '緊繃',
+            'good': '狀況良好'
+        };
+
+        skinObservationText = recentSkinObservations.map(obs => {
+            const dateLabel = obs.daysAgo === 0 ? '今天' : obs.daysAgo === 1 ? '昨天' : `${obs.daysAgo}天前`;
+            const conditions = obs.conditions.map(c => conditionMap[c] || c).join('、');
+            let text = `  - ${dateLabel}：${conditions}`;
+            if (obs.notes) {
+                text += ` | 備註：${obs.notes}`;
+            }
+            return text;
+        }).join('\n');
+    }
+
     const prompt = `你是專業的保養顧問 Sunny。請根據以下資訊，為今日每個時段推薦完整的保養流程。
 
 # 🚨 最優先規則（開始規劃前必讀！）
@@ -4593,6 +4626,16 @@ ${settings.skinType === 'combination' ? '- ⚠️ 重要：混合肌請避免全
 # 今日已完成流程
 ${completedRoutinesText}
 
+# 📝 近期皮膚觀察記錄
+${skinObservationText || '- 尚無記錄'}
+
+${skinObservationText ? `⚠️ **重要**：請根據皮膚觀察記錄調整產品選擇！
+- 如果出現「敏感」、「泛紅」→ 避免刺激性產品，優先選擇舒緩、修護產品
+- 如果出現「出油」→ 選擇控油清爽產品，避免過度滋潤
+- 如果出現「乾燥」、「緊繃」→ 加強保濕產品，可使用較滋潤的乳液或面霜
+- 如果「長痘」→ 可適度使用局部痘痘護理產品，避免厚重產品堵塞毛孔
+- 如果「狀況良好」→ 可以維持現有保養流程
+` : ''}
 # ⚠️ 可用保養品清單（請務必嚴格遵守！）
 ${products ? `使用者目前擁有以下產品，**請只使用這些產品**：\n${products}` : '（使用者尚未設定產品清單，請使用一般性描述如「洗面乳」、「化妝水」、「乳液」、「防曬」等，**不要提及任何品牌或特定產品名稱**）'}
 
@@ -5293,4 +5336,170 @@ App.analyzeProduct = async function() {
         btn.textContent = originalText;
         btn.disabled = false;
     }
+};
+
+// ==========================================
+// 皮膚觀察記錄功能
+// ==========================================
+
+// 切換皮膚觀察面板的展開/收合
+App.toggleSkinObservationPanel = function() {
+    const content = document.getElementById('skinObservationContent');
+    const button = document.getElementById('toggleSkinObservation');
+
+    if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        button.textContent = '▼';
+    } else {
+        content.classList.add('collapsed');
+        button.textContent = '▶';
+    }
+};
+
+// 載入今日皮膚觀察
+App.loadTodaySkinObservation = function() {
+    const today = getLocalDateString();
+    const observation = this.skinObservations[today];
+
+    // 清除所有勾選
+    document.querySelectorAll('.skin-condition-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+
+    // 清除備註
+    document.getElementById('skinObservationNotes').value = '';
+
+    if (observation) {
+        // 勾選已記錄的狀況
+        observation.conditions.forEach(condition => {
+            const checkbox = document.querySelector(`.skin-condition-checkbox[value="${condition}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+
+        // 填入備註
+        if (observation.notes) {
+            document.getElementById('skinObservationNotes').value = observation.notes;
+        }
+    }
+
+    // 更新最近記錄顯示
+    this.updateRecentObservations();
+};
+
+// 儲存皮膚觀察
+App.saveSkinObservation = function() {
+    const today = getLocalDateString();
+
+    // 收集勾選的狀況
+    const conditions = [];
+    document.querySelectorAll('.skin-condition-checkbox:checked').forEach(cb => {
+        conditions.push(cb.value);
+    });
+
+    // 取得備註
+    const notes = document.getElementById('skinObservationNotes').value.trim();
+
+    // 檢查是否有任何輸入
+    if (conditions.length === 0 && !notes) {
+        alert('請至少選擇一個皮膚狀況或填寫備註');
+        return;
+    }
+
+    // 儲存觀察記錄
+    this.skinObservations[today] = {
+        date: today,
+        conditions: conditions,
+        notes: notes,
+        timestamp: Date.now()
+    };
+
+    this.saveData();
+
+    // 更新顯示
+    this.updateRecentObservations();
+
+    // 顯示成功提示
+    const conditionLabels = [];
+    conditions.forEach(value => {
+        const checkbox = document.querySelector(`.skin-condition-checkbox[value="${value}"]`);
+        if (checkbox) {
+            const label = checkbox.getAttribute('data-label');
+            conditionLabels.push(label);
+        }
+    });
+
+    const successMsg = '✅ 已儲存今日皮膚觀察！\n狀況：' + (conditionLabels.length > 0 ? conditionLabels.join('、') : '無');
+    alert(successMsg + (notes ? '\n備註：' + notes : ''));
+};
+
+// 更新最近觀察記錄顯示
+App.updateRecentObservations = function() {
+    const container = document.getElementById('recentObservationsList');
+    const recentArea = document.getElementById('recentObservations');
+
+    if (!container) return;
+
+    // 取得最近 7 天的記錄（不包括今天）
+    const today = getLocalDateString();
+    const observations = [];
+
+    for (let i = 1; i <= 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = getLocalDateString(date);
+
+        if (this.skinObservations[dateStr]) {
+            observations.push({
+                date: dateStr,
+                ...this.skinObservations[dateStr]
+            });
+        }
+    }
+
+    if (observations.length === 0) {
+        recentArea.style.display = 'none';
+        return;
+    }
+
+    recentArea.style.display = 'block';
+
+    // 生成記錄列表
+    container.innerHTML = observations.map(obs => {
+        const date = new Date(obs.date);
+        const dayOfWeek = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+        const formattedDate = obs.date.substring(5) + ' (週' + dayOfWeek + ')';
+
+        const conditionLabels = obs.conditions.map(value => {
+            const checkbox = document.querySelector(`.skin-condition-checkbox[value="${value}"]`);
+            return checkbox ? checkbox.getAttribute('data-label') : value;
+        });
+
+        const conditionBadges = conditionLabels.map(label => '<span class="condition-badge">' + label + '</span>').join('');
+        const notesHtml = obs.notes ? '<div class="notes">' + obs.notes + '</div>' : '';
+
+        return '<div class="recent-observation-item"><div class="date">' + formattedDate + '</div><div class="conditions">' + conditionBadges + '</div>' + notesHtml + '</div>';
+    }).join('');
+};
+
+// 取得最近的皮膚觀察記錄（用於 AI 推薦）
+App.getRecentSkinObservations = function(days = 3) {
+    const observations = [];
+
+    for (let i = 0; i < days; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = getLocalDateString(date);
+
+        if (this.skinObservations[dateStr]) {
+            observations.push({
+                date: dateStr,
+                daysAgo: i,
+                ...this.skinObservations[dateStr]
+            });
+        }
+    }
+
+    return observations;
 };

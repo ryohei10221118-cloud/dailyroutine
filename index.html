@@ -45,6 +45,70 @@
                     <div class="day-type" id="dayType"></div>
                 </div>
 
+                <!-- 皮膚狀況記錄區域 -->
+                <div class="skin-observation-card" id="skinObservationCard">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 16px;">📝 今日皮膚觀察</h3>
+                        <button class="btn-icon" id="toggleSkinObservation" title="展開/收合">▼</button>
+                    </div>
+                    <div class="skin-observation-content" id="skinObservationContent">
+                        <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">記錄您今天的皮膚狀況，AI 會據此調整保養建議</p>
+
+                        <!-- 快速選項 -->
+                        <div class="skin-condition-options">
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="oily" data-label="出油">
+                                <span>💧 出油</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="dry" data-label="乾燥">
+                                <span>🏜️ 乾燥</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="redness" data-label="泛紅">
+                                <span>🔴 泛紅</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="acne" data-label="長痘">
+                                <span>🔴 長痘</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="sensitive" data-label="敏感">
+                                <span>⚠️ 敏感</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="tight" data-label="緊繃">
+                                <span>😣 緊繃</span>
+                            </label>
+                            <label class="skin-condition-tag">
+                                <input type="checkbox" class="skin-condition-checkbox" value="good" data-label="狀況良好">
+                                <span>✨ 狀況良好</span>
+                            </label>
+                        </div>
+
+                        <!-- 自由文字輸入 -->
+                        <div style="margin-top: 10px;">
+                            <textarea
+                                id="skinObservationNotes"
+                                placeholder="補充說明（例如：T字特別油、兩頰有點刺痛、昨晚熬夜）"
+                                rows="2"
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; resize: vertical;"
+                            ></textarea>
+                        </div>
+
+                        <!-- 儲存按鈕 -->
+                        <div style="margin-top: 10px; text-align: right;">
+                            <button class="btn-primary-small" id="saveSkinObservationBtn">💾 儲存觀察</button>
+                        </div>
+
+                        <!-- 最近觀察記錄 -->
+                        <div id="recentObservations" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: none;">
+                            <h4 style="font-size: 13px; color: #666; margin: 0 0 8px 0;">📅 近期記錄</h4>
+                            <div id="recentObservationsList"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 今日時間軸 -->
                 <div class="timeline" id="todayTimeline">
                     <!-- 動態生成 -->
