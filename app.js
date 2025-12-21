@@ -22,12 +22,21 @@ const App = {
     selectedProducts: new Set(),
 
     // 資料
-    routines: {},
     products: {},
-    timeSlots: [],
-    reminders: [],
     history: [],
     skinConditionRecords: [],
+    workSchedule: {
+        type: 'fixed', // 'fixed' 或 'shift'
+        workdays: [1, 2, 3, 4, 5], // 週一到週五
+        wakeUpTime: '08:30',
+        leaveHomeTime: '07:30',
+        bedTime: '22:00'
+    },
+    settings: {
+        openaiApiKey: '',
+        weatherApiKey: '',
+        cityName: 'Taipei'
+    },
 
     // 初始化
     init() {
@@ -44,24 +53,22 @@ const App = {
         const saved = localStorage.getItem('skincareData');
         if (saved) {
             const data = JSON.parse(saved);
-            this.routines = data.routines || {};
             this.products = data.products || {};
-            this.timeSlots = data.timeSlots || [];
-            this.reminders = data.reminders || [];
             this.history = data.history || [];
             this.skinConditionRecords = data.skinConditionRecords || [];
+            this.workSchedule = data.workSchedule || this.workSchedule;
+            this.settings = data.settings || this.settings;
         }
     },
 
     // 保存資料
     saveData() {
         const data = {
-            routines: this.routines,
             products: this.products,
-            timeSlots: this.timeSlots,
-            reminders: this.reminders,
             history: this.history,
-            skinConditionRecords: this.skinConditionRecords
+            skinConditionRecords: this.skinConditionRecords,
+            workSchedule: this.workSchedule,
+            settings: this.settings
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
 
@@ -75,16 +82,7 @@ const App = {
 
     // 初始化預設資料
     initializeDefaultData() {
-        // 如果沒有資料，創建預設流程
-        if (Object.keys(this.routines).length === 0) {
-            this.createDefaultRoutines();
-        }
-        if (Object.keys(this.products).length === 0) {
-            this.createDefaultProducts();
-        }
-        if (this.timeSlots.length === 0) {
-            this.createDefaultTimeSlots();
-        }
+        // 不再創建預設流程和時段，由用戶自行添加產品並使用AI生成
     },
 
     // 創建預設保養流程
