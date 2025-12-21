@@ -1752,3 +1752,142 @@ h3 {
     color: var(--primary-color);
     font-size: 18px;
 }
+
+/* ========================================== */
+/* 皮膚狀況記錄樣式 */
+/* ========================================== */
+
+.skin-condition-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.skin-condition-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.skin-condition-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.btn-add-condition {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-add-condition:hover {
+    background: var(--primary-hover);
+}
+
+.skin-condition-summary {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 60px;
+}
+
+.empty-state {
+    color: var(--text-secondary);
+    text-align: center;
+    margin: 0;
+    padding: 20px 0;
+}
+
+.skin-summary-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skin-overall {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.skin-overall .emoji {
+    font-size: 24px;
+}
+
+.skin-conditions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.condition-tag {
+    background: var(--accent-color);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.skin-notes {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 皮膚狀況模態框 */
+.condition-checkboxes,
+.area-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.condition-checkboxes label,
+.area-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* 皮膚趨勢摘要 */
+.skin-trend-summary {
+    background: #f0f9ff;
+    border-left: 4px solid #3b82f6;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.skin-trend-summary h4 {
+    margin: 0 0 10px 0;
+    color: #1e40af;
+    font-size: 15px;
+}
+
+.skin-trend-info {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.skin-trend-info p {
+    margin: 6px 0;
+}
+
+.skin-trend-info strong {
+    color: var(--text-primary);
+}

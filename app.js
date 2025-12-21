@@ -27,6 +27,7 @@ const App = {
     timeSlots: [],
     reminders: [],
     history: [],
+    skinConditionRecords: [],
 
     // 初始化
     init() {
@@ -48,6 +49,7 @@ const App = {
             this.timeSlots = data.timeSlots || [];
             this.reminders = data.reminders || [];
             this.history = data.history || [];
+            this.skinConditionRecords = data.skinConditionRecords || [];
         }
     },
 
@@ -58,7 +60,8 @@ const App = {
             products: this.products,
             timeSlots: this.timeSlots,
             reminders: this.reminders,
-            history: this.history
+            history: this.history,
+            skinConditionRecords: this.skinConditionRecords
         };
         localStorage.setItem('skincareData', JSON.stringify(data));
 
@@ -549,6 +552,10 @@ App.setupEventListeners = function() {
     document.getElementById('mergeRoutinesBtn')?.addEventListener('click', () => this.applySuggestionMerge());
     document.getElementById('replaceRoutinesBtn')?.addEventListener('click', () => this.applySuggestionReplace());
 
+    // 皮膚狀況記錄
+    document.getElementById('addSkinConditionBtn')?.addEventListener('click', () => this.showSkinConditionModal());
+    document.getElementById('saveSkinConditionBtn')?.addEventListener('click', () => this.saveSkinCondition());
+
     // 日曆導航
     document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
     document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
@@ -632,6 +639,9 @@ App.updateUI = function() {
 
     // 更新當前標籤
     this.switchTab(this.currentTab);
+
+    // 更新皮膚狀況摘要
+    this.updateSkinConditionSummary();
 };
 
 App.updateTodayView = function() {
@@ -2008,6 +2018,55 @@ App.showSmartSuggestModal = function() {
     document.getElementById('smartSuggestResult').style.display = 'none';
     document.getElementById('applySuggestBtn').style.display = 'none';
 
+    // 顯示皮膚狀況趨勢
+    const skinTrend = this.getSkinConditionTrend(7);
+    const trendSummary = document.getElementById('skinTrendSummary');
+    const trendContent = document.getElementById('skinTrendContent');
+
+    if (skinTrend && skinTrend.recordCount > 0) {
+        const conditionText = {
+            'dry': '乾燥',
+            'oily': '出油',
+            'sensitive': '敏感',
+            'redness': '泛紅',
+            'acne': '長痘',
+            'rough': '粗糙',
+            'tight': '緊繃',
+            'flaky': '脫皮'
+        };
+
+        const areaText = {
+            'forehead': '額頭',
+            'tzone': 'T字部位',
+            'cheeks': '兩頰',
+            'chin': '下巴',
+            'nose': '鼻子'
+        };
+
+        const trendEmoji = {
+            'improving': '📈 改善中',
+            'stable': '➡️ 穩定',
+            'worsening': '📉 變差'
+        };
+
+        let html = `<div class="skin-trend-info">`;
+        html += `<p><strong>近 ${skinTrend.recordCount} 天記錄</strong> ${trendEmoji[skinTrend.trend]}</p>`;
+
+        if (skinTrend.mainConditions.length > 0) {
+            html += `<p>主要問題：${skinTrend.mainConditions.map(c => conditionText[c]).join('、')}</p>`;
+        }
+
+        if (skinTrend.mainAreas.length > 0) {
+            html += `<p>影響區域：${skinTrend.mainAreas.map(a => areaText[a]).join('、')}</p>`;
+        }
+
+        html += `</div>`;
+        trendContent.innerHTML = html;
+        trendSummary.style.display = 'block';
+    } else {
+        trendSummary.style.display = 'none';
+    }
+
     modal.classList.add('active');
 };
 
@@ -2056,13 +2115,33 @@ App.analyzeAndGenerateSuggestion = function(productsText, scheduleText, skinConc
     // 產品分類
     const categorizedProducts = this.categorizeProducts(products);
 
+    // 獲取皮膚狀況趨勢
+    const skinTrend = this.getSkinConditionTrend(7);
+
+    // 合併皮膚問題：來自用戶輸入和近期記錄
+    let combinedSkinConcerns = skinConcerns;
+    if (skinTrend && skinTrend.mainConditions.length > 0) {
+        const conditionText = {
+            'dry': '乾燥',
+            'oily': '出油',
+            'sensitive': '敏感',
+            'redness': '泛紅',
+            'acne': '長痘',
+            'rough': '粗糙',
+            'tight': '緊繃',
+            'flaky': '脫皮'
+        };
+        const trendConcerns = skinTrend.mainConditions.map(c => conditionText[c]).join('、');
+        combinedSkinConcerns = skinConcerns ? `${skinConcerns}。近期觀察：${trendConcerns}` : `近期觀察：${trendConcerns}`;
+    }
+
     // 生成建議流程
     const routines = [];
     const timeSlots = [];
 
     // 起床保養流程
     if (scheduleTimes.morning) {
-        const morningSteps = this.buildMorningRoutine(categorizedProducts, skinConcerns);
+        const morningSteps = this.buildMorningRoutine(categorizedProducts, combinedSkinConcerns, skinTrend);
         routines.push({
             id: 'ai-routine-morning',
             name: '【AI建議】起床保養',
@@ -2102,7 +2181,7 @@ App.analyzeAndGenerateSuggestion = function(productsText, scheduleText, skinConc
 
     // 睡前保養流程
     if (scheduleTimes.night) {
-        const nightSteps = this.buildNightRoutine(categorizedProducts, skinConcerns);
+        const nightSteps = this.buildNightRoutine(categorizedProducts, combinedSkinConcerns, skinTrend);
         routines.push({
             id: 'ai-routine-night',
             name: '【AI建議】睡前保養',
@@ -2197,24 +2276,39 @@ App.categorizeProducts = function(products) {
     return categorized;
 };
 
-App.buildMorningRoutine = function(products, concerns) {
+App.buildMorningRoutine = function(products, concerns, skinTrend) {
     const steps = [];
+
+    // 根據皮膚趨勢調整清潔強度
+    const hasDryIssue = skinTrend?.mainConditions.includes('dry') || skinTrend?.mainConditions.includes('tight') || skinTrend?.mainConditions.includes('flaky');
+    const hasOilyIssue = skinTrend?.mainConditions.includes('oily');
+    const hasSensitiveIssue = skinTrend?.mainConditions.includes('sensitive') || skinTrend?.mainConditions.includes('redness');
 
     // 1. 清潔
     if (products.cleanser.length > 0) {
+        let cleanserNotes = '溫和清潔，不要過度摩擦';
+        if (hasDryIssue) {
+            cleanserNotes = '用溫水，輕柔清潔，避免過度清潔';
+        } else if (hasOilyIssue) {
+            cleanserNotes = '重點清潔 T 字部位，其他區域輕輕帶過';
+        }
         steps.push({
             text: products.cleanser[0],
-            notes: '溫和清潔，不要過度摩擦'
+            notes: cleanserNotes
         });
     }
 
-    // 2. 治療性產品（如果有）
-    if (products.treatment.length > 0) {
+    // 2. 治療性產品（根據皮膚狀況調整）
+    if (products.treatment.length > 0 && !hasSensitiveIssue) {
         const hasBHA = products.treatment.some(p => p.includes('水楊酸'));
         if (hasBHA) {
+            let bhaNote = '只擦 T 字、下巴、粉刺區，避開兩頰';
+            if (skinTrend?.trend === 'worsening') {
+                bhaNote += '（近期皮膚狀況變差，建議減少使用頻率）';
+            }
             steps.push({
                 text: products.treatment.find(p => p.includes('水楊酸')),
-                notes: '只擦 T 字、下巴、粉刺區，避開兩頰',
+                notes: bhaNote,
                 area: 'T字部位'
             });
             steps.push({
@@ -2229,13 +2323,22 @@ App.buildMorningRoutine = function(products, concerns) {
                 notes: '按照產品說明使用'
             });
         }
+    } else if (hasSensitiveIssue) {
+        steps.push({
+            text: '⚠️ 暫停刺激性產品',
+            notes: '近期皮膚較敏感，建議今天跳過治療型產品'
+        });
     }
 
-    // 3. 化妝水
+    // 3. 化妝水（根據乾燥程度調整）
     if (products.toner.length > 0) {
+        let tonerLayers = '1-2 層，輕拍至吸收';
+        if (hasDryIssue) {
+            tonerLayers = '2-3 層，充分濕潤肌膚';
+        }
         steps.push({
             text: products.toner[0],
-            notes: '1-2 層，輕拍至吸收'
+            notes: tonerLayers
         });
     }
 
@@ -2247,12 +2350,18 @@ App.buildMorningRoutine = function(products, concerns) {
         });
     }
 
-    // 5. 保濕
+    // 5. 保濕（根據乾燥程度調整）
     if (products.moisturizer.length > 0) {
+        let moisturizerNote = '覺得會乾再加';
+        let moisturizerOptional = true;
+        if (hasDryIssue) {
+            moisturizerNote = '近期皮膚乾燥，建議加強保濕';
+            moisturizerOptional = false;
+        }
         steps.push({
             text: products.moisturizer[0],
-            notes: '覺得會乾再加',
-            optional: true
+            notes: moisturizerNote,
+            optional: moisturizerOptional
         });
     }
 
@@ -2291,38 +2400,60 @@ App.buildSunscreenRoutine = function(products) {
     return steps;
 };
 
-App.buildNightRoutine = function(products, concerns) {
+App.buildNightRoutine = function(products, concerns, skinTrend) {
     const steps = [];
+
+    // 根據皮膚趨勢調整
+    const hasDryIssue = skinTrend?.mainConditions.includes('dry') || skinTrend?.mainConditions.includes('tight') || skinTrend?.mainConditions.includes('flaky');
+    const hasSensitiveIssue = skinTrend?.mainConditions.includes('sensitive') || skinTrend?.mainConditions.includes('redness');
 
     // 1. 卸妝清潔
     if (products.cleanser.length > 0) {
+        let cleanserNote = '徹底清潔白天的防曬和髒污';
+        if (hasDryIssue) {
+            cleanserNote = '溫和卸妝，避免過度清潔導致更乾燥';
+        }
         steps.push({
             text: products.cleanser[0],
-            notes: '徹底清潔白天的防曬和髒污'
+            notes: cleanserNote
         });
     }
 
     // 2. 化妝水
     if (products.toner.length > 0) {
+        let tonerNote = '1-2 層';
+        if (hasDryIssue) {
+            tonerNote = '2-3 層，充分補水';
+        }
         steps.push({
             text: products.toner[0],
-            notes: '1-2 層'
+            notes: tonerNote
         });
     }
 
     // 3. 精華
     if (products.essence.length > 0) {
+        let essenceNote = '修護舒緩';
+        if (hasSensitiveIssue) {
+            essenceNote = '修護舒緩，近期皮膚敏感，用量可略增';
+        }
         steps.push({
             text: products.essence[0],
-            notes: '修護舒緩'
+            notes: essenceNote
         });
     }
 
-    // 4. 面膜（週間輪替建議）
+    // 4. 面膜（根據皮膚狀況調整頻率）
     if (products.mask.length > 0) {
+        let maskNote = '每週 2-3 次，10-15 分鐘';
+        if (hasDryIssue) {
+            maskNote = '近期皮膚乾燥，建議增加至每週 3-4 次';
+        } else if (hasSensitiveIssue) {
+            maskNote = '近期皮膚敏感，暫時減少至每週 1-2 次';
+        }
         steps.push({
             text: products.mask.join(' 或 '),
-            notes: '每週 2-3 次，10-15 分鐘',
+            notes: maskNote,
             optional: true,
             timer: 600,
             timerMax: 900
@@ -2331,9 +2462,13 @@ App.buildNightRoutine = function(products, concerns) {
 
     // 5. 保濕
     if (products.moisturizer.length > 0) {
+        let moisturizerNote = '鎖住水分';
+        if (hasDryIssue) {
+            moisturizerNote = '加厚塗抹，充分鎖水（近期皮膚乾燥）';
+        }
         steps.push({
             text: products.moisturizer[0],
-            notes: '鎖住水分'
+            notes: moisturizerNote
         });
     }
 
@@ -2944,3 +3079,220 @@ setInterval(() => {
         });
     }
 }, 60000);
+
+// ==========================================
+// 皮膚狀況記錄功能
+// ==========================================
+
+App.showSkinConditionModal = function() {
+    const modal = document.getElementById('skinConditionModal');
+
+    // 設置當前日期
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('conditionDate').value = today;
+
+    // 檢查今天是否已有記錄
+    const existingRecord = this.skinConditionRecords.find(r => r.date === today);
+
+    if (existingRecord) {
+        // 填充現有記錄
+        document.getElementById('conditionOverall').value = existingRecord.overall || 'normal';
+        document.getElementById('conditionWeather').value = existingRecord.weather || '';
+        document.getElementById('conditionNotes').value = existingRecord.notes || '';
+        document.getElementById('conditionCauses').value = existingRecord.causes || '';
+
+        // 設置勾選框
+        document.querySelectorAll('.condition-type').forEach(cb => {
+            cb.checked = existingRecord.conditions?.includes(cb.value) || false;
+        });
+        document.querySelectorAll('.condition-area').forEach(cb => {
+            cb.checked = existingRecord.areas?.includes(cb.value) || false;
+        });
+    } else {
+        // 重置表單
+        document.getElementById('conditionOverall').value = 'normal';
+        document.getElementById('conditionWeather').value = '';
+        document.getElementById('conditionNotes').value = '';
+        document.getElementById('conditionCauses').value = '';
+        document.querySelectorAll('.condition-type, .condition-area').forEach(cb => {
+            cb.checked = false;
+        });
+    }
+
+    modal.classList.add('active');
+};
+
+App.saveSkinCondition = function() {
+    const date = document.getElementById('conditionDate').value;
+    const overall = document.getElementById('conditionOverall').value;
+    const weather = document.getElementById('conditionWeather').value;
+    const notes = document.getElementById('conditionNotes').value.trim();
+    const causes = document.getElementById('conditionCauses').value.trim();
+
+    // 獲取勾選的狀況
+    const conditions = Array.from(document.querySelectorAll('.condition-type:checked')).map(cb => cb.value);
+    const areas = Array.from(document.querySelectorAll('.condition-area:checked')).map(cb => cb.value);
+
+    // 創建或更新記錄
+    const record = {
+        id: 'skin-' + date,
+        date,
+        overall,
+        conditions,
+        areas,
+        weather,
+        notes,
+        causes,
+        timestamp: new Date().toISOString()
+    };
+
+    // 檢查是否已存在今日記錄
+    const existingIndex = this.skinConditionRecords.findIndex(r => r.date === date);
+    if (existingIndex !== -1) {
+        this.skinConditionRecords[existingIndex] = record;
+    } else {
+        this.skinConditionRecords.push(record);
+    }
+
+    // 按日期降序排列，保留最近30天
+    this.skinConditionRecords.sort((a, b) => b.date.localeCompare(a.date));
+    if (this.skinConditionRecords.length > 30) {
+        this.skinConditionRecords = this.skinConditionRecords.slice(0, 30);
+    }
+
+    this.saveData();
+    this.updateSkinConditionSummary();
+
+    document.getElementById('skinConditionModal').classList.remove('active');
+
+    alert('✅ 皮膚狀況已記錄！');
+};
+
+App.updateSkinConditionSummary = function() {
+    const summaryDiv = document.getElementById('skinConditionSummary');
+    const today = new Date().toISOString().split('T')[0];
+
+    const todayRecord = this.skinConditionRecords.find(r => r.date === today);
+
+    if (!todayRecord) {
+        summaryDiv.innerHTML = '<p class="empty-state">尚未記錄今日皮膚狀況</p>';
+        return;
+    }
+
+    // 顯示今日記錄摘要
+    const overallEmoji = {
+        'excellent': '😊',
+        'good': '🙂',
+        'normal': '😐',
+        'concern': '😟',
+        'bad': '😢'
+    };
+
+    const overallText = {
+        'excellent': '非常好',
+        'good': '良好',
+        'normal': '正常',
+        'concern': '有點問題',
+        'bad': '不佳'
+    };
+
+    const conditionText = {
+        'dry': '乾燥',
+        'oily': '出油',
+        'sensitive': '敏感',
+        'redness': '泛紅',
+        'acne': '長痘',
+        'rough': '粗糙',
+        'tight': '緊繃',
+        'flaky': '脫皮'
+    };
+
+    let html = `
+        <div class="skin-summary-content">
+            <div class="skin-overall">
+                <span class="emoji">${overallEmoji[todayRecord.overall]}</span>
+                <span class="text">${overallText[todayRecord.overall]}</span>
+            </div>
+    `;
+
+    if (todayRecord.conditions.length > 0) {
+        html += '<div class="skin-conditions">';
+        todayRecord.conditions.forEach(c => {
+            html += `<span class="condition-tag">${conditionText[c]}</span>`;
+        });
+        html += '</div>';
+    }
+
+    if (todayRecord.notes) {
+        html += `<p class="skin-notes">${todayRecord.notes}</p>`;
+    }
+
+    html += '</div>';
+    summaryDiv.innerHTML = html;
+};
+
+App.getSkinConditionTrend = function(days = 7) {
+    const recentRecords = this.skinConditionRecords.slice(0, days);
+
+    if (recentRecords.length === 0) {
+        return null;
+    }
+
+    // 統計最常出現的問題
+    const conditionCount = {};
+    const areaCount = {};
+    const weatherImpact = {};
+
+    recentRecords.forEach(record => {
+        record.conditions.forEach(c => {
+            conditionCount[c] = (conditionCount[c] || 0) + 1;
+        });
+        record.areas.forEach(a => {
+            areaCount[a] = (areaCount[a] || 0) + 1;
+        });
+        if (record.weather && record.overall !== 'excellent' && record.overall !== 'good') {
+            weatherImpact[record.weather] = (weatherImpact[record.weather] || 0) + 1;
+        }
+    });
+
+    // 找出主要問題
+    const mainConditions = Object.entries(conditionCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([condition]) => condition);
+
+    const mainAreas = Object.entries(areaCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([area]) => area);
+
+    // 計算整體趨勢
+    const overallScores = {
+        'excellent': 5,
+        'good': 4,
+        'normal': 3,
+        'concern': 2,
+        'bad': 1
+    };
+
+    const avgScore = recentRecords.reduce((sum, r) => sum + overallScores[r.overall], 0) / recentRecords.length;
+
+    let trend = 'stable';
+    if (recentRecords.length >= 3) {
+        const recent3 = recentRecords.slice(0, 3).reduce((sum, r) => sum + overallScores[r.overall], 0) / 3;
+        const previous3 = recentRecords.slice(3, 6).reduce((sum, r) => sum + overallScores[r.overall], 0) / Math.max(recentRecords.slice(3, 6).length, 1);
+
+        if (recent3 > previous3 + 0.5) trend = 'improving';
+        else if (recent3 < previous3 - 0.5) trend = 'worsening';
+    }
+
+    return {
+        recordCount: recentRecords.length,
+        mainConditions,
+        mainAreas,
+        weatherImpact,
+        avgScore,
+        trend,
+        recentRecords
+    };
+};
