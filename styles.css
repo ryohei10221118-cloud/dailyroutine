@@ -1891,3 +1891,123 @@ h3 {
 .skin-trend-info strong {
     color: var(--text-primary);
 }
+
+/* ========================================== */
+/* 新增样式 - 顶部导航和设置 */
+/* ========================================== */
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-settings {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.3s;
+    line-height: 1;
+}
+
+.btn-settings:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+/* 班表管理样式 */
+.schedule-type-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f5f7fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.schedule-type-selector label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.schedule-type-selector label:has(input:checked) {
+    border-color: var(--primary-color);
+    background: #f0f9ff;
+}
+
+.schedule-type-selector input[type="radio"] {
+    width: 20px;
+    height: 20px;
+}
+
+.workday-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.workday-selector label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.workday-selector label:has(input:checked) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.routine-times-settings {
+    margin-top: 25px;
+    background: #f5f7fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.routine-times-settings h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+/* 设置模态框样式 */
+.settings-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.settings-section h4 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+}
+
+.settings-section small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}

@@ -16,18 +16,19 @@
         <!-- 頂部導航 -->
         <header class="app-header">
             <h1>🧴 滾滾Reminder</h1>
-            <div class="header-date" id="currentDate"></div>
+            <div class="header-right">
+                <div class="header-date" id="currentDate"></div>
+                <button class="btn-settings" id="settingsBtn" title="設定">⚙️</button>
+            </div>
         </header>
 
         <!-- 主要內容區 -->
         <main class="main-content">
             <!-- 標籤頁導航 -->
             <nav class="tab-nav">
-                <button class="tab-btn active" data-tab="today">今日流程</button>
+                <button class="tab-btn active" data-tab="today">今日保養</button>
                 <button class="tab-btn" data-tab="calendar">集章日曆</button>
-                <button class="tab-btn" data-tab="routines">流程管理</button>
-                <button class="tab-btn" data-tab="schedule">時段設定</button>
-                <button class="tab-btn" data-tab="reminders">提醒</button>
+                <button class="tab-btn" data-tab="schedule">班表管理</button>
                 <button class="tab-btn" data-tab="products">產品管理</button>
             </nav>
 
@@ -67,84 +68,63 @@
                 </div>
             </section>
 
-            <!-- 時段設定頁面 -->
+            <!-- 班表管理頁面 -->
             <section class="tab-content" id="schedule-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div>
-                        <h2 style="margin: 0;">⏰ 時段設定</h2>
-                        <p class="section-desc" style="margin: 5px 0 0 0;">您可以自由新增或刪除提醒時段</p>
+                <h2>📅 班表管理</h2>
+                <p class="section-desc">設定您的工作班表，AI 會根據上班日和休假日提供不同的保養建議</p>
+
+                <!-- 班表類型選擇 -->
+                <div class="schedule-type-selector">
+                    <label>
+                        <input type="radio" name="scheduleType" value="fixed" checked>
+                        <span>固定班表（例如：週一到週五上班）</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="scheduleType" value="shift">
+                        <span>輪班制（自訂每日班表）</span>
+                    </label>
+                </div>
+
+                <!-- 固定班表設定 -->
+                <div class="fixed-schedule-settings" id="fixedScheduleSettings">
+                    <h3>工作日設定</h3>
+                    <div class="workday-selector">
+                        <label><input type="checkbox" value="1" class="workday-check" checked> 週一</label>
+                        <label><input type="checkbox" value="2" class="workday-check" checked> 週二</label>
+                        <label><input type="checkbox" value="3" class="workday-check" checked> 週三</label>
+                        <label><input type="checkbox" value="4" class="workday-check" checked> 週四</label>
+                        <label><input type="checkbox" value="5" class="workday-check" checked> 週五</label>
+                        <label><input type="checkbox" value="6" class="workday-check"> 週六</label>
+                        <label><input type="checkbox" value="0" class="workday-check"> 週日</label>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-add-small" id="addTimeSlotBtn">+ 新增</button>
-                        <button class="btn-select-mode" id="toggleSlotSelectModeBtn">選擇</button>
-                    </div>
                 </div>
 
-                <!-- 星期選擇器 -->
-                <div class="weekday-filter">
-                    <label for="weekdayFilter">選擇星期：</label>
-                    <select id="weekdayFilter" class="weekday-filter-select">
-                        <option value="all">全部時段</option>
-                        <option value="1">週一</option>
-                        <option value="2">週二</option>
-                        <option value="3">週三</option>
-                        <option value="4">週四</option>
-                        <option value="5">週五</option>
-                        <option value="6">週六</option>
-                        <option value="0">週日</option>
-                    </select>
-                </div>
-
-                <div class="batch-actions" id="slotBatchActions" style="display: none;">
-                    <button class="btn-select-all" id="selectAllSlotsBtn">全選</button>
-                    <button class="btn-batch-edit" id="batchEditSlotsBtn">批量修改</button>
-                    <button class="btn-delete-selected" id="deleteSelectedSlotsBtn">刪除選中</button>
-                    <button class="btn-cancel-select" id="cancelSlotSelectBtn">取消</button>
-                </div>
-
-                <div class="time-slots-list" id="timeSlotsList">
-                    <!-- 動態生成 -->
-                </div>
-
-                <!-- 週間排程 -->
-                <div class="weekly-schedule">
-                    <h3>每週排程</h3>
-                    <div id="weeklyScheduleView">
+                <!-- 輪班制設定 -->
+                <div class="shift-schedule-settings" id="shiftScheduleSettings" style="display: none;">
+                    <h3>自訂班表</h3>
+                    <div class="shift-calendar" id="shiftCalendar">
                         <!-- 動態生成 -->
                     </div>
                 </div>
-            </section>
 
-            <!-- 流程管理頁面 -->
-            <section class="tab-content" id="routines-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">📋 流程管理</h2>
-                    <button class="btn-select-mode" id="toggleRoutineSelectModeBtn">選擇</button>
+                <!-- 作息時間設定 -->
+                <div class="routine-times-settings">
+                    <h3>作息時間</h3>
+                    <div class="form-group">
+                        <label>起床時間</label>
+                        <input type="time" id="wakeUpTime" value="08:30">
+                    </div>
+                    <div class="form-group">
+                        <label>出門時間（上班日）</label>
+                        <input type="time" id="leaveHomeTime" value="07:30">
+                    </div>
+                    <div class="form-group">
+                        <label>就寢時間</label>
+                        <input type="time" id="bedTime" value="22:00">
+                    </div>
                 </div>
 
-                <div class="batch-actions" id="routineBatchActions" style="display: none;">
-                    <button class="btn-select-all" id="selectAllRoutinesBtn">全選</button>
-                    <button class="btn-delete-selected" id="deleteSelectedRoutinesBtn">刪除選中</button>
-                    <button class="btn-cancel-select" id="cancelRoutineSelectBtn">取消</button>
-                </div>
-
-                <div class="routines-list" id="routinesList">
-                    <!-- 動態生成 -->
-                </div>
-            </section>
-
-            <!-- 提醒頁面 -->
-            <section class="tab-content" id="reminders-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">⏰ 自訂提醒</h2>
-                    <button class="btn-add-small" id="addReminderBtn">+ 新增提醒</button>
-                </div>
-
-                <p class="section-desc">建立不需要關聯保養流程的純提醒事項</p>
-
-                <div class="reminders-list" id="remindersList">
-                    <!-- 動態生成 -->
-                </div>
+                <button class="btn-primary" id="saveScheduleBtn">儲存班表設定</button>
             </section>
 
             <!-- 產品管理頁面 -->
@@ -210,13 +190,55 @@
             </section>
         </main>
 
-        <!-- 底部設置按鈕 -->
+        <!-- 底部按鈕 -->
         <footer class="app-footer">
             <button class="btn-smart-suggest" id="smartSuggestBtn">✨ AI 智能建議</button>
-            <button class="btn-notification" id="notificationBtn">🔔 啟用</button>
-            <button class="btn-test-notification" id="testNotificationBtn" style="display: none;">🔔 測試</button>
-            <button class="btn-check-update" id="checkUpdateBtn">🔄 檢查更新</button>
         </footer>
+    </div>
+
+    <!-- 設置模態框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ 設定</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>🔔 通知設定</h4>
+                    <button class="btn-primary" id="notificationBtn">啟用通知</button>
+                    <button class="btn-secondary" id="testNotificationBtn" style="margin-top: 8px;">測試通知</button>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🤖 AI 設定</h4>
+                    <div class="form-group">
+                        <label>OpenAI API Key（選填）</label>
+                        <input type="password" id="openaiApiKey" placeholder="sk-...">
+                        <small>提供 API Key 可使用更強大的 AI 功能</small>
+                    </div>
+                    <div class="form-group">
+                        <label>天氣 API Key（選填）</label>
+                        <input type="password" id="weatherApiKey" placeholder="輸入 OpenWeatherMap API Key">
+                        <small>提供 API Key 可獲取實時天氣資訊</small>
+                    </div>
+                    <div class="form-group">
+                        <label>所在城市</label>
+                        <input type="text" id="cityName" placeholder="例如：Taipei" value="Taipei">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔄 應用程式</h4>
+                    <button class="btn-secondary" id="checkUpdateBtn">檢查更新</button>
+                    <button class="btn-danger" id="clearDataBtn" style="margin-top: 8px;">清除所有資料</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">關閉</button>
+                <button class="btn-primary" id="saveSettingsBtn">儲存設定</button>
+            </div>
+        </div>
     </div>
 
     <!-- 模態框 - 新增時段 -->
@@ -380,25 +402,65 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>產品名稱</label>
-                    <input type="text" id="productName" placeholder="例如：綠滴管 積雪草精華">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="productName" placeholder="例如：綠滴管 積雪草精華" style="flex: 1;">
+                        <button class="btn-secondary" id="analyzeProductBtn">🤖 AI 分析</button>
+                    </div>
+                    <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
+                        輸入產品名稱後點擊「AI 分析」自動識別產品資訊
+                    </small>
                 </div>
+
+                <!-- AI 分析結果 -->
+                <div id="aiAnalysisResult" style="display: none; background: #f0f9ff; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;">🤖 AI 分析結果</div>
+                    <div id="aiAnalysisContent"></div>
+                </div>
+
                 <div class="form-group">
                     <label>產品類型</label>
                     <select id="productType">
+                        <option value="">請選擇...</option>
                         <option value="cleanser">洗面乳</option>
                         <option value="toner">化妝水/Toner</option>
                         <option value="essence">精華液</option>
+                        <option value="serum">精華</option>
                         <option value="cream">乳液/面霜</option>
                         <option value="sunscreen">防曬</option>
                         <option value="mask">面膜</option>
                         <option value="pad">Pad/去角質</option>
+                        <option value="treatment">治療性產品</option>
                         <option value="other">其他</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label>使用部位</label>
+                    <div class="area-checkboxes">
+                        <label><input type="checkbox" value="face" class="product-area" checked> 全臉</label>
+                        <label><input type="checkbox" value="tzone" class="product-area"> T字部位</label>
+                        <label><input type="checkbox" value="cheeks" class="product-area"> 兩頰</label>
+                        <label><input type="checkbox" value="eye" class="product-area"> 眼周</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>產品特性（可多選）</label>
+                    <div class="condition-checkboxes">
+                        <label><input type="checkbox" value="hydrating" class="product-feature"> 保濕</label>
+                        <label><input type="checkbox" value="brightening" class="product-feature"> 美白</label>
+                        <label><input type="checkbox" value="anti-aging" class="product-feature"> 抗老</label>
+                        <label><input type="checkbox" value="soothing" class="product-feature"> 舒緩</label>
+                        <label><input type="checkbox" value="exfoliating" class="product-feature"> 去角質</label>
+                        <label><input type="checkbox" value="acne-treatment" class="product-feature"> 抗痘</label>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>使用說明</label>
                     <textarea id="productNotes" placeholder="用量、塗抹方式等..." rows="3"></textarea>
                 </div>
+
                 <div class="form-group">
                     <label>庫存提醒</label>
                     <input type="number" id="productStock" placeholder="剩餘數量（選填）">
