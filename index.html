@@ -38,6 +38,17 @@
                     <div class="day-type" id="dayType"></div>
                 </div>
 
+                <!-- 皮膚狀況反饋 -->
+                <div class="skin-condition-card">
+                    <div class="skin-condition-header">
+                        <h3>📊 今日皮膚狀況</h3>
+                        <button class="btn-add-condition" id="addSkinConditionBtn">+ 記錄狀況</button>
+                    </div>
+                    <div class="skin-condition-summary" id="skinConditionSummary">
+                        <p class="empty-state">尚未記錄今日皮膚狀況</p>
+                    </div>
+                </div>
+
                 <!-- 今日時段列表 -->
                 <div class="timeline-container" id="todayTimeline">
                     <!-- 動態生成 -->
@@ -429,6 +440,12 @@
                     <p>📝 請告訴我您擁有的所有保養品，我會為您分析並生成最佳保養流程！</p>
                 </div>
 
+                <!-- 最近皮膚狀況趨勢 -->
+                <div class="skin-trend-summary" id="skinTrendSummary" style="display: none;">
+                    <h4>📊 近期皮膚狀況趨勢</h4>
+                    <div id="skinTrendContent"></div>
+                </div>
+
                 <div class="form-group">
                     <label>您的保養品清單</label>
                     <textarea id="productsInput" rows="8" placeholder="例如：&#10;洗面乳&#10;綠大罐 茶樹 Toner Pad&#10;紫色 水楊酸 Pad&#10;白綠瓶 Ssuk Latte Cream Toner&#10;綠滴管 積雪草精華&#10;乳液&#10;防曬 SPF42&#10;Mediheal 玫瑰面膜&#10;...等等（每行一個產品）"></textarea>
@@ -477,6 +494,86 @@
                 <button class="btn-primary" id="mergeRoutinesBtn" style="width: 100%;">合併流程（保留現有+新增建議）</button>
                 <button class="btn-danger" id="replaceRoutinesBtn" style="width: 100%;">替換流程（清除現有+套用建議）</button>
                 <button class="btn-secondary modal-close" style="width: 100%;">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 - 皮膚狀況記錄 -->
+    <div class="modal" id="skinConditionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📊 記錄皮膚狀況</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="conditionDate" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>整體膚況</label>
+                    <select id="conditionOverall">
+                        <option value="excellent">非常好 😊</option>
+                        <option value="good">良好 🙂</option>
+                        <option value="normal" selected>正常 😐</option>
+                        <option value="concern">有點問題 😟</option>
+                        <option value="bad">不佳 😢</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>具體狀況（可多選）</label>
+                    <div class="condition-checkboxes">
+                        <label><input type="checkbox" value="dry" class="condition-type"> 乾燥</label>
+                        <label><input type="checkbox" value="oily" class="condition-type"> 出油</label>
+                        <label><input type="checkbox" value="sensitive" class="condition-type"> 敏感</label>
+                        <label><input type="checkbox" value="redness" class="condition-type"> 泛紅</label>
+                        <label><input type="checkbox" value="acne" class="condition-type"> 長痘</label>
+                        <label><input type="checkbox" value="rough" class="condition-type"> 粗糙</label>
+                        <label><input type="checkbox" value="tight" class="condition-type"> 緊繃</label>
+                        <label><input type="checkbox" value="flaky" class="condition-type"> 脫皮</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>影響區域</label>
+                    <div class="area-checkboxes">
+                        <label><input type="checkbox" value="forehead" class="condition-area"> 額頭</label>
+                        <label><input type="checkbox" value="tzone" class="condition-area"> T字部位</label>
+                        <label><input type="checkbox" value="cheeks" class="condition-area"> 兩頰</label>
+                        <label><input type="checkbox" value="chin" class="condition-area"> 下巴</label>
+                        <label><input type="checkbox" value="nose" class="condition-area"> 鼻子</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>天氣狀況（選填）</label>
+                    <select id="conditionWeather">
+                        <option value="">請選擇...</option>
+                        <option value="sunny">晴天 ☀️</option>
+                        <option value="cloudy">陰天 ☁️</option>
+                        <option value="rainy">雨天 🌧️</option>
+                        <option value="hot">炎熱 🔥</option>
+                        <option value="cold">寒冷 ❄️</option>
+                        <option value="humid">潮濕 💧</option>
+                        <option value="dry">乾燥 🏜️</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>詳細觀察（選填）</label>
+                    <textarea id="conditionNotes" rows="3" placeholder="例如：早上起床T字部位特別油、兩頰感覺緊繃..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>可能原因（選填）</label>
+                    <textarea id="conditionCauses" rows="2" placeholder="例如：昨晚熬夜、換了新產品、吃了辣的食物..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">取消</button>
+                <button class="btn-primary" id="saveSkinConditionBtn">保存</button>
             </div>
         </div>
     </div>
